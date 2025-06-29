@@ -288,7 +288,7 @@ const Index = () => {
     setShowConfirmDialog(false);
   };
 
-  // Generate bill content for printing/sharing with bill number - UPDATED to handle no payment case
+  // Generate bill content for printing/sharing with bill number - UPDATED to show correct total amount
   const generateBillContent = (bill: Bill) => {
     const time = new Date().toLocaleTimeString();
     
@@ -304,6 +304,14 @@ const Index = () => {
         paymentMethodText = `Cash: ₹${bill.cashAmount?.toFixed(2) || '0.00'} + GPay: ₹${bill.gpayAmount?.toFixed(2) || '0.00'}`;
       }
     }
+    
+    // Calculate the previous balance by looking at bills before this one
+    const customerBills = bills.filter(b => b.customer === bill.customer && b.id < bill.id);
+    const previousBalance = customerBills.reduce((sum, b) => sum + b.balanceAmount, 0);
+    
+    // Calculate the correct total amount for display
+    const currentItemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
+    const totalBillAmount = previousBalance + currentItemsTotal;
     
     return `
 SANTHOSH CHICKEN - BILLING SYSTEM
@@ -328,7 +336,9 @@ ${bill.items.map((item, index) =>
 ).join('\n')}
 
 --------------------------------
-Total Bill Amount: ₹${bill.totalAmount.toFixed(2)}
+Previous Balance: ₹${previousBalance.toFixed(2)}
+Current Items: ₹${currentItemsTotal.toFixed(2)}
+Total Bill Amount: ₹${totalBillAmount.toFixed(2)}
 Paid Amount: ₹${bill.paidAmount.toFixed(2)}
 Balance Amount: ₹${bill.balanceAmount.toFixed(2)}${paymentMethodText ? `\nPayment Method: ${paymentMethodText}` : ''}
 ================================
@@ -507,12 +517,21 @@ Customer: ${customerName}
 
 PURCHASE HISTORY:
 ================
-${bills.map((bill, index) => `
+${bills.map((bill, index) => {
+  // Calculate previous balance for this bill
+  const previousBills = bills.filter(b => b.id < bill.id);
+  const previousBalance = previousBills.reduce((sum, b) => sum + b.balanceAmount, 0);
+  const currentItemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
+  const totalBillAmount = previousBalance + currentItemsTotal;
+  
+  return `
 Bill No: ${bill.billNumber || 'N/A'} - Date: ${formatDate(bill.date)}
 ${bill.items.map(item => 
   `• ${item.item} - ${item.weight}kg @ ₹${item.rate}/kg = ₹${item.amount.toFixed(2)}`
 ).join('\n')}
-Total: ₹${bill.totalAmount.toFixed(2)}
+Previous Balance: ₹${previousBalance.toFixed(2)}
+Current Items: ₹${currentItemsTotal.toFixed(2)}
+Total: ₹${totalBillAmount.toFixed(2)}
 Paid: ₹${bill.paidAmount.toFixed(2)}
 Balance: ₹${bill.balanceAmount.toFixed(2)}
 Payment: ${bill.paymentMethod === 'cash' ? 'Cash' : 
@@ -520,7 +539,8 @@ Payment: ${bill.paymentMethod === 'cash' ? 'Cash' :
           bill.paymentMethod === 'cash_gpay' ? `Cash + GPay` :
           `Check/DD - ${bill.bankName} - ${bill.checkNumber}`}
 -----------------------------------
-`).join('')}
+`;
+}).join('')}
 
 SUMMARY:
 ========
@@ -661,6 +681,12 @@ DETAILED BILLS:
       content += 'No bills found for this customer.\n';
     } else {
       customerBills.forEach((bill, index) => {
+        // Calculate previous balance for this bill
+        const previousBills = customerBills.filter(b => b.id < bill.id);
+        const previousBalance = previousBills.reduce((sum, b) => sum + b.balanceAmount, 0);
+        const currentItemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
+        const totalBillAmount = previousBalance + currentItemsTotal;
+        
         content += `\nBill #${index + 1} - ${bill.billNumber || 'N/A'}
 Date: ${formatDate(bill.date)}
 Time: ${bill.timestamp.toLocaleTimeString('en-IN')}
@@ -673,7 +699,9 @@ Items:
         });
         
         content += `----------------------------------------
-Total Amount: ₹${bill.totalAmount.toFixed(2)}
+Previous Balance: ₹${previousBalance.toFixed(2)}
+Current Items: ₹${currentItemsTotal.toFixed(2)}
+Total Amount: ₹${totalBillAmount.toFixed(2)}
 Paid Amount: ₹${bill.paidAmount.toFixed(2)}
 Balance Amount: ₹${bill.balanceAmount.toFixed(2)}
 Payment Method: ${bill.paymentMethod.toUpperCase()}`;

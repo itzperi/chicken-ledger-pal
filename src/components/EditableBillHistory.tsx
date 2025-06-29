@@ -99,12 +99,21 @@ Customer: ${customerName}
 
 PURCHASE HISTORY:
 ================
-${bills.map((bill, index) => `
+${bills.map((bill, index) => {
+  // Calculate previous balance for this bill
+  const previousBills = bills.filter(b => b.id < bill.id);
+  const previousBalance = previousBills.reduce((sum, b) => sum + b.balanceAmount, 0);
+  const currentItemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
+  const totalBillAmount = previousBalance + currentItemsTotal;
+  
+  return `
 Bill No: ${bill.billNumber || 'N/A'} - Date: ${formatDate(bill.date)}
 ${bill.items.map(item => 
   `• ${item.item} - ${item.weight}kg @ ₹${item.rate}/kg = ₹${item.amount.toFixed(2)}`
 ).join('\n')}
-Total: ₹${bill.totalAmount.toFixed(2)}
+Previous Balance: ₹${previousBalance.toFixed(2)}
+Current Items: ₹${currentItemsTotal.toFixed(2)}
+Total: ₹${totalBillAmount.toFixed(2)}
 Paid: ₹${bill.paidAmount.toFixed(2)}
 Balance: ₹${bill.balanceAmount.toFixed(2)}
 Payment: ${bill.paymentMethod === 'cash' ? 'Cash' : 
@@ -112,7 +121,8 @@ Payment: ${bill.paymentMethod === 'cash' ? 'Cash' :
           bill.paymentMethod === 'cash_gpay' ? `Cash + GPay` :
           `Check/DD - ${bill.bankName} - ${bill.checkNumber}`}
 -----------------------------------
-`).join('')}
+`;
+}).join('')}
 
 SUMMARY:
 ========
