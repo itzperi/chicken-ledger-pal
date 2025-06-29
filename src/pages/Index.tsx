@@ -210,7 +210,7 @@ const Index = () => {
     
     const validItems = billItems.filter(item => item.item && item.weight && item.rate);
 
-    // Create bill record with correct totals - NO BALANCE UPDATE
+    // Create bill record with correct totals
     const billRecord = {
       customer: selectedCustomer,
       customerPhone: selectedCustomerPhone,
@@ -225,7 +225,7 @@ const Index = () => {
     // Add to billing history
     const savedBill = await addBill(billRecord);
     
-    // Set confirmed bill and show actions - NO BALANCE UPDATE
+    // Set confirmed bill and show actions
     if (savedBill) {
       setConfirmedBill(savedBill);
       setIsBalanceOnlyBill(true);
@@ -233,7 +233,7 @@ const Index = () => {
     }
   };
 
-  // Handle bill confirmation with payment (Case 2) - NO BALANCE UPDATE
+  // Handle bill confirmation with payment (Case 2) - UPDATED with correct balance calculation
   const handleConfirmBill = async () => {
     let paidAmount = 0;
     
@@ -251,15 +251,18 @@ const Index = () => {
     
     // Handle balance-only payment (no new items, just paying existing balance)
     let totalAmount = itemsTotal;
-    let balanceAmount = itemsTotal - paidAmount;
+    let balanceAmount = 0;
     
     if (validItems.length === 0 && existingBalance > 0) {
       // This is a balance-only payment
       totalAmount = paidAmount; // Total amount is what they're paying
       balanceAmount = existingBalance - paidAmount; // Remaining balance after payment
+    } else {
+      // This is a regular bill with items
+      balanceAmount = itemsTotal - paidAmount; // New balance after this purchase
     }
 
-    // Create bill record with payment method details - NO BALANCE UPDATE
+    // Create bill record with payment method details
     const billRecord = {
       customer: selectedCustomer,
       customerPhone: selectedCustomerPhone,
@@ -279,7 +282,7 @@ const Index = () => {
     // Add to billing history
     const savedBill = await addBill(billRecord);
     
-    // Set confirmed bill and show actions - NO BALANCE UPDATE
+    // Set confirmed bill and show actions
     if (savedBill) {
       setConfirmedBill(savedBill);
       setIsBalanceOnlyBill(validItems.length === 0);
@@ -288,7 +291,7 @@ const Index = () => {
     setShowConfirmDialog(false);
   };
 
-  // Generate bill content for printing/sharing with bill number - UPDATED to show correct total amount
+  // Generate bill content for printing/sharing with bill number - FIXED to show correct balance
   const generateBillContent = (bill: Bill) => {
     const time = new Date().toLocaleTimeString();
     
@@ -305,12 +308,25 @@ const Index = () => {
       }
     }
     
-    // Calculate the previous balance by looking at bills before this one
-    const customerBills = bills.filter(b => b.customer === bill.customer && b.id < bill.id);
-    const previousBalance = customerBills.reduce((sum, b) => sum + b.balanceAmount, 0);
+    // Get the customer's current balance from the database
+    const customer = customers.find(c => c.name === bill.customer);
+    const currentCustomerBalance = customer?.balance || 0;
     
-    // Calculate the correct total amount for display
+    // Calculate the previous balance (before this transaction)
+    let previousBalance = 0;
+    if (bill.items.length === 1 && bill.items[0].item === 'Balance Payment') {
+      // For balance-only payments, previous balance = current balance + amount paid
+      previousBalance = currentCustomerBalance + bill.paidAmount;
+    } else {
+      // For regular bills, previous balance = current balance - (items total - paid amount)
+      const itemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
+      previousBalance = currentCustomerBalance - (itemsTotal - bill.paidAmount);
+    }
+    
+    // Calculate the current items total
     const currentItemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
+    
+    // Calculate the total bill amount (previous balance + current items)
     const totalBillAmount = previousBalance + currentItemsTotal;
     
     return `

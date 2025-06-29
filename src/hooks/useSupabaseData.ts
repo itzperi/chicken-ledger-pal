@@ -298,6 +298,24 @@ export const useSupabaseData = (businessId: string) => {
         timestamp: new Date(data.created_at || '')
       };
       
+      // Update customer balance based on the new bill
+      const customer = customers.find(c => c.name === bill.customer);
+      if (customer) {
+        // Calculate the new customer balance based on the bill
+        let newCustomerBalance = 0;
+        
+        if (bill.items.length === 1 && bill.items[0].item === 'Balance Payment') {
+          // This is a balance-only payment - customer is paying existing balance
+          newCustomerBalance = customer.balance - bill.paidAmount;
+        } else {
+          // This is a regular bill with items
+          // The balanceAmount in the bill represents the final balance after this transaction
+          newCustomerBalance = bill.balanceAmount;
+        }
+        
+        await updateCustomerBalance(bill.customer, newCustomerBalance);
+      }
+      
       setBills(prev => [newBill, ...prev]);
       return newBill;
     } catch (error) {
