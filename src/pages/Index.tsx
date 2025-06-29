@@ -312,19 +312,19 @@ const Index = () => {
     const customer = customers.find(c => c.name === bill.customer);
     const currentCustomerBalance = customer?.balance || 0;
     
+    // Calculate the current items total
+    const currentItemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
+    
     // Calculate the previous balance (before this transaction)
     let previousBalance = 0;
     if (bill.items.length === 1 && bill.items[0].item === 'Balance Payment') {
       // For balance-only payments, previous balance = current balance + amount paid
       previousBalance = currentCustomerBalance + bill.paidAmount;
     } else {
-      // For regular bills, previous balance = current balance - (items total - paid amount)
-      const itemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
-      previousBalance = currentCustomerBalance - (itemsTotal - bill.paidAmount);
+      // For regular bills with items, previous balance = current balance - (items total - paid amount)
+      // This gives us the balance before this transaction was added
+      previousBalance = currentCustomerBalance - (currentItemsTotal - bill.paidAmount);
     }
-    
-    // Calculate the current items total
-    const currentItemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
     
     // Calculate the total bill amount (previous balance + current items)
     const totalBillAmount = previousBalance + currentItemsTotal;
@@ -354,7 +354,7 @@ ${bill.items.map((item, index) =>
 --------------------------------
 Previous Balance: ₹${previousBalance.toFixed(2)}
 Current Items: ₹${currentItemsTotal.toFixed(2)}
-Total Bill Amount: ₹${totalBillAmount.toFixed(2)}
+Total Balance: ₹${totalBillAmount.toFixed(2)}
 Paid Amount: ₹${bill.paidAmount.toFixed(2)}
 Balance Amount: ₹${bill.balanceAmount.toFixed(2)}${paymentMethodText ? `\nPayment Method: ${paymentMethodText}` : ''}
 ================================
