@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Plus, Edit, Save, X, Trash2, FileText } from 'lucide-react';
 
@@ -9,9 +10,9 @@ interface Customer {
 
 interface CustomerManagerProps {
   customers: Customer[];
-  onAddCustomer: (customer: Customer) => void;
-  onUpdateCustomer: (index: number, customer: Customer) => void;
-  onDeleteCustomer?: (customerName: string) => void;
+  onAddCustomer: (customer: Customer) => Promise<void>;
+  onUpdateCustomer: (index: number, customer: Customer) => Promise<void>;
+  onDeleteCustomer?: (customerName: string) => Promise<void>;
   onDownloadCustomerData?: (customerName: string) => void;
   onDownloadAllCustomersData?: () => void;
 }
@@ -70,51 +71,56 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
 
   const handleEditStart = (index: number, customer: Customer) => {
     setEditingIndex(index);
-    setEditingCustomer(customer);
+    setEditingCustomer({ ...customer });
   };
 
   const handleEditSave = async () => {
-    if (editingIndex !== null) {
-      if (!editingCustomer.name.trim()) {
-        alert('Please enter a customer name');
-        return;
-      }
-      
-      if (!editingCustomer.phone.trim()) {
-        alert('Please enter a phone number');
-        return;
-      }
-
-      // Check if name already exists (excluding current customer)
-      const existingCustomerByName = customers.find((c, i) => 
-        i !== editingIndex && c.name.toLowerCase() === editingCustomer.name.toLowerCase()
-      );
-      if (existingCustomerByName) {
-        alert('A customer with this name already exists');
-        return;
-      }
-
-      // Check if phone already exists (excluding current customer)
-      const existingCustomerByPhone = customers.find((c, i) => 
-        i !== editingIndex && c.phone === editingCustomer.phone
-      );
-      if (existingCustomerByPhone) {
-        alert('A customer with this phone number already exists');
-        return;
-      }
-
-      setIsLoading(true);
-      try {
-        await onUpdateCustomer(editingIndex, editingCustomer);
-        setEditingIndex(null);
-        alert('Customer updated successfully!');
-      } catch (error) {
-        alert('Error updating customer. Please try again.');
-        console.error('Error updating customer:', error);
-      } finally {
-        setIsLoading(false);
-      }
+    if (editingIndex === null) return;
+    
+    if (!editingCustomer.name.trim()) {
+      alert('Please enter a customer name');
+      return;
     }
+    
+    if (!editingCustomer.phone.trim()) {
+      alert('Please enter a phone number');
+      return;
+    }
+
+    // Check if name already exists (excluding current customer)
+    const existingCustomerByName = customers.find((c, i) => 
+      i !== editingIndex && c.name.toLowerCase() === editingCustomer.name.toLowerCase()
+    );
+    if (existingCustomerByName) {
+      alert('A customer with this name already exists');
+      return;
+    }
+
+    // Check if phone already exists (excluding current customer)
+    const existingCustomerByPhone = customers.find((c, i) => 
+      i !== editingIndex && c.phone === editingCustomer.phone
+    );
+    if (existingCustomerByPhone) {
+      alert('A customer with this phone number already exists');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await onUpdateCustomer(editingIndex, editingCustomer);
+      setEditingIndex(null);
+      alert('Customer updated successfully!');
+    } catch (error) {
+      alert('Error updating customer. Please try again.');
+      console.error('Error updating customer:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEditCancel = () => {
+    setEditingIndex(null);
+    setEditingCustomer({ name: '', phone: '', balance: 0 });
   };
 
   const handleDeleteClick = (index: number) => {
@@ -122,20 +128,20 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
   };
 
   const handleDeleteConfirm = async () => {
-    if (deleteConfirmIndex !== null && onDeleteCustomer) {
-      const customerToDelete = customers[deleteConfirmIndex];
-      
-      setIsLoading(true);
-      try {
-        await onDeleteCustomer(customerToDelete.name);
-        setDeleteConfirmIndex(null);
-        alert('Customer deleted successfully!');
-      } catch (error) {
-        alert(`Error deleting customer: ${error instanceof Error ? error.message : 'Please try again.'}`);
-        console.error('Error deleting customer:', error);
-      } finally {
-        setIsLoading(false);
-      }
+    if (deleteConfirmIndex === null || !onDeleteCustomer) return;
+    
+    const customerToDelete = customers[deleteConfirmIndex];
+    
+    setIsLoading(true);
+    try {
+      await onDeleteCustomer(customerToDelete.name);
+      setDeleteConfirmIndex(null);
+      alert('Customer deleted successfully!');
+    } catch (error) {
+      alert(`Error deleting customer: ${error instanceof Error ? error.message : 'Please try again.'}`);
+      console.error('Error deleting customer:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -165,6 +171,7 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
           />
           <input
             type="number"
+            step="0.01"
             value={newCustomer.balance}
             onChange={(e) => setNewCustomer({...newCustomer, balance: parseFloat(e.target.value) || 0})}
             className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -217,14 +224,14 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
             </thead>
             <tbody>
               {customers.map((customer, index) => (
-                <tr key={index}>
+                <tr key={`${customer.name}-${customer.phone}`}>
                   <td className="border border-gray-300 p-3">
                     {editingIndex === index ? (
                       <input
                         type="text"
                         value={editingCustomer.name}
                         onChange={(e) => setEditingCustomer({...editingCustomer, name: e.target.value})}
-                        className="w-full p-2 border border-gray-200 rounded"
+                        className="w-full p-2 border border-gray-200 rounded focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
                       customer.name
@@ -236,7 +243,7 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
                         type="tel"
                         value={editingCustomer.phone}
                         onChange={(e) => setEditingCustomer({...editingCustomer, phone: e.target.value})}
-                        className="w-full p-2 border border-gray-200 rounded"
+                        className="w-full p-2 border border-gray-200 rounded focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
                       customer.phone
@@ -246,9 +253,10 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
                     {editingIndex === index ? (
                       <input
                         type="number"
+                        step="0.01"
                         value={editingCustomer.balance}
                         onChange={(e) => setEditingCustomer({...editingCustomer, balance: parseFloat(e.target.value) || 0})}
-                        className="w-full p-2 border border-gray-200 rounded"
+                        className="w-full p-2 border border-gray-200 rounded focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
                       `₹${customer.balance.toFixed(2)}`
@@ -270,8 +278,9 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
                           )}
                         </button>
                         <button
-                          onClick={() => setEditingIndex(null)}
-                          className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+                          onClick={handleEditCancel}
+                          disabled={isLoading}
+                          className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                           title="Cancel"
                         >
                           <X className="h-4 w-4" />
@@ -281,7 +290,8 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleEditStart(index, customer)}
-                          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                          disabled={isLoading}
+                          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                           title="Edit"
                         >
                           <Edit className="h-4 w-4" />
@@ -289,7 +299,8 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
                         {onDownloadCustomerData && (
                           <button
                             onClick={() => onDownloadCustomerData(customer.name)}
-                            className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                            disabled={isLoading}
+                            className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                             title="Download customer data"
                           >
                             <FileText className="h-4 w-4" />
@@ -298,7 +309,8 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
                         {onDeleteCustomer && (
                           <button
                             onClick={() => handleDeleteClick(index)}
-                            className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                            disabled={isLoading}
+                            className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                             title="Delete"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -326,7 +338,8 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
             <div className="flex gap-3 justify-end">
               <button
                 onClick={handleDeleteCancel}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                disabled={isLoading}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>

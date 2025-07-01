@@ -124,6 +124,7 @@ export const useSupabaseData = (businessId: string) => {
       setProducts(prev => [...prev, data]);
     } catch (error) {
       console.error('Error adding product:', error);
+      throw error;
     }
   };
 
@@ -140,6 +141,7 @@ export const useSupabaseData = (businessId: string) => {
       setProducts(prev => prev.map(p => p.id === id ? { ...p, name } : p));
     } catch (error) {
       console.error('Error updating product:', error);
+      throw error;
     }
   };
 
@@ -156,24 +158,31 @@ export const useSupabaseData = (businessId: string) => {
       setProducts(prev => prev.filter(p => p.id !== id));
     } catch (error) {
       console.error('Error deleting product:', error);
+      throw error;
     }
   };
 
   // Add customer
   const addCustomer = async (customer: Customer) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('customers')
         .insert([{
           name: customer.name,
           phone: customer.phone,
           balance: customer.balance,
           business_id: businessId
-        }]);
+        }])
+        .select()
+        .single();
 
       if (error) throw error;
       
-      setCustomers(prev => [...prev, customer]);
+      setCustomers(prev => [...prev, {
+        name: data.name,
+        phone: data.phone,
+        balance: parseFloat(data.balance?.toString() || '0')
+      }]);
     } catch (error) {
       console.error('Error adding customer:', error);
       throw error;
@@ -183,6 +192,8 @@ export const useSupabaseData = (businessId: string) => {
   const updateCustomer = async (index: number, customer: Customer) => {
     try {
       const existingCustomer = customers[index];
+      
+      // Update in database using the original customer's name as identifier
       const { error } = await supabase
         .from('customers')
         .update({
@@ -191,10 +202,12 @@ export const useSupabaseData = (businessId: string) => {
           balance: customer.balance
         })
         .eq('name', existingCustomer.name)
+        .eq('phone', existingCustomer.phone)
         .eq('business_id', businessId);
 
       if (error) throw error;
       
+      // Update local state
       setCustomers(prev => prev.map((c, i) => i === index ? customer : c));
     } catch (error) {
       console.error('Error updating customer:', error);
@@ -217,6 +230,7 @@ export const useSupabaseData = (businessId: string) => {
       ));
     } catch (error) {
       console.error('Error updating customer balance:', error);
+      throw error;
     }
   };
 
