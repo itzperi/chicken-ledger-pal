@@ -185,10 +185,13 @@ const Index = () => {
       return;
     }
 
-    if (billItems.length === 0) {
+    // Check if this is a balance-only payment (no items but has payment amount)
+    const isBalanceOnlyPayment = billItems.length === 0 && paidAmount > 0;
+    
+    if (!isBalanceOnlyPayment && billItems.length === 0) {
       toast({
         title: "Error",
-        description: "Bill must have at least one item.",
+        description: "Bill must have at least one item or a payment amount for balance payment.",
       });
       return;
     }
@@ -217,14 +220,31 @@ const Index = () => {
       return;
     }
 
+    let finalBillItems = billItems;
+    let finalTotalAmount = totalAmount;
+    let finalBalanceAmount = balanceAmount;
+
+    // For balance-only payments, create a special item
+    if (isBalanceOnlyPayment) {
+      finalBillItems = [{
+        no: 1,
+        item: 'Balance Payment',
+        weight: '0',
+        rate: '0',
+        amount: 0
+      }];
+      finalTotalAmount = 0; // No new charges
+      finalBalanceAmount = -paidAmount; // Negative balance means customer paid more than they owed
+    }
+
     const newBill = {
       customer: customerName,
       customerPhone: customerPhone,
       date: billDate,
-      items: billItems,
-      totalAmount: totalAmount,
+      items: finalBillItems,
+      totalAmount: finalTotalAmount,
       paidAmount: paidAmount,
-      balanceAmount: balanceAmount,
+      balanceAmount: finalBalanceAmount,
       paymentMethod: paymentMethod,
       upiType: upiType,
       bankName: bankName,
@@ -238,7 +258,7 @@ const Index = () => {
       if (addedBill) {
         toast({
           title: "Success",
-          description: "Bill added successfully.",
+          description: isBalanceOnlyPayment ? "Balance payment recorded successfully." : "Bill added successfully.",
         });
         clearBillForm();
       } else {
@@ -432,6 +452,117 @@ const Index = () => {
     }
   };
 
+  // Function to download customer data
+  const handleDownloadCustomerData = (customerName: string) => {
+    const customer = customers.find(c => c.name === customerName);
+    if (!customer) {
+      toast({
+        title: "Error",
+        description: "Customer not found.",
+      });
+      return;
+    }
+
+    // Get all bills for this customer
+    const customerBills = bills.filter(bill => bill.customer === customerName);
+    
+    // Calculate total transactions
+    const totalBillAmount = customerBills.reduce((sum, bill) => sum + bill.totalAmount, 0);
+    const totalPaidAmount = customerBills.reduce((sum, bill) => sum + bill.paidAmount, 0);
+
+    // Create customer data report
+    const customerData = {
+      customerInfo: {
+        name: customer.name,
+        phone: customer.phone,
+        currentBalance: customer.balance,
+        totalBills: customerBills.length,
+        totalBillAmount: totalBillAmount,
+        totalPaidAmount: totalPaidAmount,
+        reportGeneratedOn: new Date().toLocaleString()
+      },
+      billHistory: customerBills.map(bill => ({
+        billNumber: bill.billNumber,
+        date: bill.date,
+        items: bill.items,
+        totalAmount: bill.totalAmount,
+        paidAmount: bill.paidAmount,
+        balanceAmount: bill.balanceAmount,
+        paymentMethod: bill.paymentMethod
+      }))
+    };
+
+    // Create and download the JSON file
+    const dataStr = JSON.stringify(customerData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${customerName.replace(/\s+/g, '_')}_data_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Success",
+      description: `Customer data for ${customerName} has been downloaded.`,
+    });
+  };
+
+  // Function to download all customers data
+  const handleDownloadAllCustomersData = () => {
+    const allCustomersData = customers.map(customer => {
+      const customerBills = bills.filter(bill => bill.customer === customer.name);
+      const totalBillAmount = customerBills.reduce((sum, bill) => sum + bill.totalAmount, 0);
+      const totalPaidAmount = customerBills.reduce((sum, bill) => sum + bill.paidAmount, 0);
+
+      return {
+        customerInfo: {
+          name: customer.name,
+          phone: customer.phone,
+          currentBalance: customer.balance,
+          totalBills: customerBills.length,
+          totalBillAmount: totalBillAmount,
+          totalPaidAmount: totalPaidAmount
+        },
+        billHistory: customerBills.map(bill => ({
+          billNumber: bill.billNumber,
+          date: bill.date,
+          items: bill.items,
+          totalAmount: bill.totalAmount,
+          paidAmount: bill.paidAmount,
+          balanceAmount: bill.balanceAmount,
+          paymentMethod: bill.paymentMethod
+        }))
+      };
+    });
+
+    const reportData = {
+      reportGeneratedOn: new Date().toLocaleString(),
+      totalCustomers: customers.length,
+      totalBills: bills.length,
+      customersData: allCustomersData
+    };
+
+    // Create and download the JSON file
+    const dataStr = JSON.stringify(reportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `all_customers_data_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Success",
+      description: "All customers data has been downloaded.",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {!isLoggedIn ? (
@@ -454,7 +585,7 @@ const Index = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>Billing</CardTitle>
-                  <CardDescription>Create and manage bills.</CardDescription>
+                  <CardDescription>Create bills or record balance payments.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -486,7 +617,16 @@ const Index = () => {
                       onChange={(e) => setBillDate(e.target.value)}
                     />
                   </div>
+                  
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <p className="text-sm text-blue-700 mb-2">
+                      <strong>Note:</strong> You can either add items for a regular bill, or just enter a payment amount below for balance payments.
+                    </p>
+                  </div>
+
                   <Separator />
+                  
+                  {/* Items section - keep existing code */}
                   <div className="grid grid-cols-5 gap-2">
                     <Label htmlFor="item">Item</Label>
                     <Label htmlFor="weight">Weight</Label>
@@ -528,6 +668,8 @@ const Index = () => {
                     </Button>
                   </div>
                   <Separator />
+                  
+                  {/* Bill Items display - keep existing code */}
                   {billItems.length > 0 && (
                     <div className="space-y-2">
                       <h3 className="text-lg font-semibold">Bill Items</h3>
@@ -564,14 +706,17 @@ const Index = () => {
                     </div>
                   )}
                   <Separator />
+                  
+                  {/* Payment section - keep existing code with slight modification */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="paidAmount">Paid Amount</Label>
+                      <Label htmlFor="paidAmount">Payment Amount</Label>
                       <Input
                         type="number"
                         id="paidAmount"
                         value={paidAmount.toString()}
                         onChange={(e) => setPaidAmount(parseFloat(e.target.value))}
+                        placeholder={billItems.length === 0 ? "Enter payment amount for balance" : "Enter paid amount"}
                       />
                     </div>
                     <div>
@@ -584,6 +729,8 @@ const Index = () => {
                       />
                     </div>
                   </div>
+
+                  {/* Keep existing payment method section and rest of the component */}
                   <div>
                     <Label htmlFor="paymentMethod">Payment Method</Label>
                     <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as 'cash' | 'upi' | 'check' | 'cash_gpay')}>
@@ -598,6 +745,8 @@ const Index = () => {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Keep existing conditional payment method fields */}
                   {paymentMethod === 'upi' && (
                     <div>
                       <Label htmlFor="upiType">UPI Type</Label>
@@ -658,6 +807,8 @@ const Index = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* Keep existing submit buttons section */}
                   <div className="flex justify-between">
                     {isEditingBill ? (
                       <div className="flex space-x-2">
@@ -675,7 +826,7 @@ const Index = () => {
                       </div>
                     ) : (
                       <Button type="button" onClick={handleSubmit}>
-                        Submit Bill
+                        {billItems.length === 0 && paidAmount > 0 ? 'Record Payment' : 'Submit Bill'}
                       </Button>
                     )}
                     <Button type="button" variant="outline" onClick={handlePrintBill} disabled={isPrinting}>
@@ -705,7 +856,14 @@ const Index = () => {
                   <CardDescription>Manage customer information.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <CustomerManager customers={customers} onAddCustomer={addCustomer} onUpdateCustomer={updateCustomer} onDeleteCustomer={deleteCustomer} />
+                  <CustomerManager 
+                    customers={customers} 
+                    onAddCustomer={addCustomer} 
+                    onUpdateCustomer={updateCustomer} 
+                    onDeleteCustomer={deleteCustomer}
+                    onDownloadCustomerData={handleDownloadCustomerData}
+                    onDownloadAllCustomersData={handleDownloadAllCustomersData}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
