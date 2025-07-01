@@ -14,6 +14,7 @@ import CustomerManager from '@/components/CustomerManager';
 import Products from '@/components/Products';
 import LoadManager from '@/components/LoadManager';
 import EditableBillHistory from '@/components/EditableBillHistory';
+import EnhancedBillHistory from '@/components/EnhancedBillHistory';
 import SalesDashboard from '@/components/SalesDashboard';
 import Login from '@/components/Login';
 
@@ -419,7 +420,7 @@ const Index = () => {
     }, 500);
   };
 
-  // Create a wrapper function for EditableBillHistory
+  // Create a wrapper function for EnhancedBillHistory
   const handleUpdateBillFromHistory = async (bill: Bill) => {
     try {
       await updateBill(bill);
@@ -822,7 +823,7 @@ const Index = () => {
                   <CardDescription>View customer balances and bill history.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <EditableBillHistory 
+                  <EnhancedBillHistory 
                     bills={bills} 
                     customers={customers} 
                     onUpdateBill={handleUpdateBillFromHistory} 
