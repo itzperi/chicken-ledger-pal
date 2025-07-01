@@ -11,14 +11,13 @@ import { Separator } from "@/components/ui/separator";
 import { Plus, Minus, Trash2, Edit2, Save, X, PrinterIcon } from "lucide-react";
 import { useSupabaseData } from '@/hooks/useSupabaseData';
 import { useToast } from "@/hooks/use-toast";
-import { CustomerManager } from '@/components/CustomerManager';
-import { Products } from '@/components/Products';
-import { LoadManager } from '@/components/LoadManager';
-import { EditableBillHistory } from '@/components/EditableBillHistory';
-import { SalesDashboard } from '@/components/SalesDashboard';
-import { Login } from '@/components/Login';
+import CustomerManager from '@/components/CustomerManager';
+import Products from '@/components/Products';
+import LoadManager from '@/components/LoadManager';
+import EditableBillHistory from '@/components/EditableBillHistory';
+import SalesDashboard from '@/components/SalesDashboard';
+import Login from '@/components/Login';
 
-// Updated Bill interface to match the one in useSupabaseData.ts
 interface BillItem {
   no: number;
   item: string;
@@ -125,7 +124,7 @@ const Index = () => {
     setBalanceAmount(totalAmount - paidAmount);
   }, [totalAmount, paidAmount]);
 
-  const handleLogin = (id: string) => {
+  const handleLogin = (userType: 'owner' | 'staff', id: 'santhosh1' | 'santhosh2') => {
     setBusinessId(id);
     setIsLoggedIn(true);
     localStorage.setItem('businessId', id);
@@ -663,7 +662,7 @@ const Index = () => {
                   <CardDescription>View customer balances and bill history.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <EditableBillHistory bills={bills} customers={customers} onEditBill={handleEditBill} />
+                  <EditableBillHistory customerHistory={bills} customerName={customerName} onUpdateBill={updateBill} />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -675,7 +674,7 @@ const Index = () => {
                   <CardDescription>Manage customer information.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <CustomerManager customers={customers} addCustomer={addCustomer} updateCustomer={updateCustomer} deleteCustomer={deleteCustomer} />
+                  <CustomerManager customers={customers} onAddCustomer={addCustomer} onUpdateCustomer={updateCustomer} onDeleteCustomer={deleteCustomer} />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -687,7 +686,7 @@ const Index = () => {
                   <CardDescription>Manage product inventory.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Products products={products} addProduct={addProduct} updateProduct={updateProduct} deleteProduct={deleteProduct} />
+                  <Products products={products} onAddProduct={addProduct} onUpdateProduct={updateProduct} onDeleteProduct={deleteProduct} />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -711,7 +710,7 @@ const Index = () => {
                   <CardDescription>View sales statistics and analytics.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <SalesDashboard bills={bills} customers={customers} />
+                  <SalesDashboard bills={bills} customers={customers} businessId={businessId} />
                 </CardContent>
               </Card>
             </TabsContent>
