@@ -401,6 +401,38 @@ const Index = () => {
     }, 500);
   };
 
+  // Create a wrapper function for EditableBillHistory
+  const handleUpdateBillFromHistory = async (billId: number, updatedBill: Partial<Bill>) => {
+    const existingBill = bills.find(b => b.id === billId);
+    if (!existingBill) {
+      toast({
+        title: "Error",
+        description: "Bill not found.",
+      });
+      return;
+    }
+
+    const fullUpdatedBill: Bill = {
+      ...existingBill,
+      ...updatedBill,
+      id: billId
+    };
+
+    try {
+      await updateBill(fullUpdatedBill);
+      toast({
+        title: "Success",
+        description: "Bill updated successfully.",
+      });
+    } catch (error) {
+      console.error("Error updating bill:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update bill.",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {!isLoggedIn ? (
@@ -662,7 +694,7 @@ const Index = () => {
                   <CardDescription>View customer balances and bill history.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <EditableBillHistory customerHistory={bills} customerName={customerName} onUpdateBill={updateBill} />
+                  <EditableBillHistory customerHistory={bills} customerName={customerName} onUpdateBill={handleUpdateBillFromHistory} />
                 </CardContent>
               </Card>
             </TabsContent>
