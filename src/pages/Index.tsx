@@ -111,15 +111,14 @@ const Index = () => {
     }
   }, []);
 
+  // Fixed: Recalculate total amount correctly without doubling
   useEffect(() => {
-    // Recalculate total amount whenever bill items change
     const newTotal = billItems.reduce((acc, item) => acc + item.amount, 0);
     setTotalAmount(newTotal);
-    setBalanceAmount(newTotal - paidAmount); // Also update balance amount
-  }, [billItems, paidAmount]);
+  }, [billItems]);
 
+  // Fixed: Update balance amount when total or paid amount changes
   useEffect(() => {
-    // Update balance amount whenever totalAmount or paidAmount changes
     setBalanceAmount(totalAmount - paidAmount);
   }, [totalAmount, paidAmount]);
 
@@ -145,7 +144,7 @@ const Index = () => {
       const amount = parseFloat(newBillItem.weight) * parseFloat(newBillItem.rate);
       const newItem = { ...newBillItem, amount };
       setBillItems(prev => [...prev, newItem]);
-      setNewBillItem({ no: billItems.length + 2, item: '', weight: '', rate: '', amount: 0 }); // Increment 'no'
+      setNewBillItem({ no: billItems.length + 2, item: '', weight: '', rate: '', amount: 0 });
     }
   };
 
@@ -421,24 +420,9 @@ const Index = () => {
   };
 
   // Create a wrapper function for EditableBillHistory
-  const handleUpdateBillFromHistory = async (billId: number, updatedBill: Partial<Bill>) => {
-    const existingBill = bills.find(b => b.id === billId);
-    if (!existingBill) {
-      toast({
-        title: "Error",
-        description: "Bill not found.",
-      });
-      return;
-    }
-
-    const fullUpdatedBill: Bill = {
-      ...existingBill,
-      ...updatedBill,
-      id: billId
-    };
-
+  const handleUpdateBillFromHistory = async (bill: Bill) => {
     try {
-      await updateBill(fullUpdatedBill);
+      await updateBill(bill);
       toast({
         title: "Success",
         description: "Bill updated successfully.",
@@ -626,7 +610,6 @@ const Index = () => {
 
                   <Separator />
                   
-                  {/* Items section - keep existing code */}
                   <div className="grid grid-cols-5 gap-2">
                     <Label htmlFor="item">Item</Label>
                     <Label htmlFor="weight">Weight</Label>
@@ -669,7 +652,6 @@ const Index = () => {
                   </div>
                   <Separator />
                   
-                  {/* Bill Items display - keep existing code */}
                   {billItems.length > 0 && (
                     <div className="space-y-2">
                       <h3 className="text-lg font-semibold">Bill Items</h3>
@@ -707,7 +689,6 @@ const Index = () => {
                   )}
                   <Separator />
                   
-                  {/* Payment section - keep existing code with slight modification */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="paidAmount">Payment Amount</Label>
@@ -715,7 +696,7 @@ const Index = () => {
                         type="number"
                         id="paidAmount"
                         value={paidAmount.toString()}
-                        onChange={(e) => setPaidAmount(parseFloat(e.target.value))}
+                        onChange={(e) => setPaidAmount(parseFloat(e.target.value) || 0)}
                         placeholder={billItems.length === 0 ? "Enter payment amount for balance" : "Enter paid amount"}
                       />
                     </div>
@@ -730,7 +711,6 @@ const Index = () => {
                     </div>
                   </div>
 
-                  {/* Keep existing payment method section and rest of the component */}
                   <div>
                     <Label htmlFor="paymentMethod">Payment Method</Label>
                     <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as 'cash' | 'upi' | 'check' | 'cash_gpay')}>
@@ -746,7 +726,6 @@ const Index = () => {
                     </Select>
                   </div>
 
-                  {/* Keep existing conditional payment method fields */}
                   {paymentMethod === 'upi' && (
                     <div>
                       <Label htmlFor="upiType">UPI Type</Label>
@@ -808,7 +787,6 @@ const Index = () => {
                     </div>
                   )}
 
-                  {/* Keep existing submit buttons section */}
                   <div className="flex justify-between">
                     {isEditingBill ? (
                       <div className="flex space-x-2">
@@ -844,7 +822,12 @@ const Index = () => {
                   <CardDescription>View customer balances and bill history.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <EditableBillHistory customerHistory={bills} customerName={customerName} onUpdateBill={handleUpdateBillFromHistory} />
+                  <EditableBillHistory 
+                    bills={bills} 
+                    customers={customers} 
+                    onUpdateBill={handleUpdateBillFromHistory} 
+                    onDeleteBill={deleteBill}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
