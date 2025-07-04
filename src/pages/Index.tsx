@@ -288,9 +288,9 @@ const Index = () => {
     setShowConfirmDialog(false);
   };
 
-  // Generate bill content for printing/sharing with bill number - UPDATED to show correct total amount
+  // Generate bill content for printing/sharing with bill number - UPDATED to match Print Preview format
   const generateBillContent = (bill: Bill) => {
-    const time = new Date().toLocaleTimeString();
+    const time = new Date(bill.timestamp).toLocaleTimeString();
     
     let paymentMethodText = '';
     if (bill.paidAmount > 0) {
@@ -305,9 +305,9 @@ const Index = () => {
       }
     }
     
-    // Calculate the previous balance by looking at bills before this one
-    const customerBills = bills.filter(b => b.customer === bill.customer && b.id < bill.id);
-    const previousBalance = customerBills.reduce((sum, b) => sum + b.balanceAmount, 0);
+    // Find customer to get previous balance - same logic as Print Preview
+    const customer = customers.find(c => c.name === bill.customer);
+    const previousBalance = customer?.balance || 0;
     
     // Calculate the correct total amount for display
     const currentItemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
@@ -315,7 +315,7 @@ const Index = () => {
     
     return `
 SANTHOSH CHICKEN - BILLING SYSTEM
-================================
+==================================
 21 West Cemetery Road
 Old Washermanpet
 Chennai 21
@@ -324,8 +324,8 @@ WhatsApp: 7200226930
 Email: mathangopal5467@yahoo.com
 
 Bill No: ${bill.billNumber || 'N/A'}
-Bill Date: ${bill.date}
-Bill Time: ${time}
+Date: ${bill.date}
+Time: ${time}
 Customer: ${bill.customer}
 Phone: ${bill.customerPhone}
 
@@ -339,8 +339,8 @@ ${bill.items.map((item, index) =>
 Previous Balance: ₹${previousBalance.toFixed(2)}
 Current Items: ₹${currentItemsTotal.toFixed(2)}
 Total Bill Amount: ₹${totalBillAmount.toFixed(2)}
-Paid Amount: ₹${bill.paidAmount.toFixed(2)}
-Balance Amount: ₹${bill.balanceAmount.toFixed(2)}${paymentMethodText ? `\nPayment Method: ${paymentMethodText}` : ''}
+Payment Amount: ₹${bill.paidAmount.toFixed(2)}
+New Balance: ₹${bill.balanceAmount.toFixed(2)}${paymentMethodText ? `\nPayment Method: ${paymentMethodText}` : ''}
 ================================
 
 Thank you for your business!
