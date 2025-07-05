@@ -305,10 +305,10 @@ const Index = () => {
       }
     }
     
-    // Calculate balances same as print preview
+    // Get actual customer balance same as print preview
+    const customer = customers.find(c => c.name === bill.customer);
+    const previousBalance = customer?.balance || 0;
     const itemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
-    // Previous balance = New balance + Paid amount - Items total
-    const previousBalance = bill.balanceAmount + bill.paidAmount - itemsTotal;
     const totalBillAmount = previousBalance + itemsTotal;
     
     return `
