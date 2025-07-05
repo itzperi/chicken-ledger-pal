@@ -98,6 +98,9 @@ const Index = () => {
   const [customerHistory, setCustomerHistory] = useState<Bill[]>([]);
   const [addBalanceCustomer, setAddBalanceCustomer] = useState('');
   const [addBalanceAmount, setAddBalanceAmount] = useState('');
+  
+  // Running balance state - Previous balance from last bill
+  const [previousBalance, setPreviousBalance] = useState(0);
 
   // Refs
   const customerInputRef = useRef<HTMLInputElement>(null);
@@ -139,13 +142,25 @@ const Index = () => {
     resetForm();
   };
 
-  // Handle customer selection
+  // Handle customer selection - UPDATED to fetch previous balance from last bill
   const handleCustomerSelect = (customerName: string) => {
     const customer = customers.find(c => c.name === customerName);
     setSelectedCustomer(customerName);
     setSelectedCustomerPhone(customer?.phone || '');
     setCustomerInput(customerName);
     setShowCustomerSuggestions(false);
+    
+    // Find customer's latest bill to get previous balance
+    const customerBills = bills.filter(bill => bill.customer === customerName);
+    if (customerBills.length > 0) {
+      // Sort by date descending and get the latest bill
+      const latestBill = customerBills.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+      const latestBalance = latestBill.balanceAmount || 0;
+      setPreviousBalance(latestBalance);
+    } else {
+      // First bill for this customer - no previous balance
+      setPreviousBalance(0);
+    }
   };
 
   // Handle bill item changes with default item selection - UPDATED to use Chicken Live as default
@@ -203,29 +218,32 @@ const Index = () => {
     }
   };
 
-  // Handle bill confirmation without payment (Case 1) - NO BALANCE UPDATE
+  // Handle bill confirmation without payment (Case 1) - UPDATED with running balance logic
   const handleConfirmBillWithoutPayment = async () => {
-    // Calculate only new items total
+    // Calculate current items total
     const itemsTotal = billItems.filter(item => item.item && item.weight && item.rate).reduce((sum, item) => sum + item.amount, 0);
-    
     const validItems = billItems.filter(item => item.item && item.weight && item.rate);
+    
+    // Running balance calculation: Total = Previous Balance + Current Items
+    const totalBillAmount = previousBalance + itemsTotal;
+    const newBalance = totalBillAmount - 0; // No payment, so new balance = total bill amount
 
-    // Create bill record with correct totals - NO BALANCE UPDATE
+    // Create bill record with running balance logic
     const billRecord = {
       customer: selectedCustomer,
       customerPhone: selectedCustomerPhone,
       date: selectedDate,
       items: validItems,
-      totalAmount: itemsTotal, // Only new items amount
+      totalAmount: totalBillAmount, // Previous balance + current items
       paidAmount: 0,
-      balanceAmount: itemsTotal, // New items become balance for this bill
+      balanceAmount: newBalance, // Amount to carry forward
       paymentMethod: 'cash' as const,
     };
 
     // Add to billing history
     const savedBill = await addBill(billRecord);
     
-    // Set confirmed bill and show actions - NO BALANCE UPDATE
+    // Set confirmed bill and show actions
     if (savedBill) {
       setConfirmedBill(savedBill);
       setIsBalanceOnlyBill(true);
@@ -233,7 +251,7 @@ const Index = () => {
     }
   };
 
-  // Handle bill confirmation with payment (Case 2) - NO BALANCE UPDATE
+  // Handle bill confirmation with payment (Case 2) - UPDATED with running balance logic
   const handleConfirmBill = async () => {
     let paidAmount = 0;
     
@@ -244,30 +262,32 @@ const Index = () => {
       paidAmount = parseFloat(paymentAmount) || 0;
     }
     
-    // Calculate only new items total
+    // Calculate current items total
     const itemsTotal = billItems.filter(item => item.item && item.weight && item.rate).reduce((sum, item) => sum + item.amount, 0);
     const validItems = billItems.filter(item => item.item && item.weight && item.rate);
-    const existingBalance = customers.find(c => c.name === selectedCustomer)?.balance || 0;
     
-    // Handle balance-only payment (no new items, just paying existing balance)
-    let totalAmount = itemsTotal;
-    let balanceAmount = itemsTotal - paidAmount;
+    // Running balance calculation
+    let totalBillAmount, newBalance;
     
-    if (validItems.length === 0 && existingBalance > 0) {
-      // This is a balance-only payment
-      totalAmount = paidAmount; // Total amount is what they're paying
-      balanceAmount = existingBalance - paidAmount; // Remaining balance after payment
+    if (validItems.length === 0 && previousBalance > 0) {
+      // This is a balance-only payment (no new items, just paying existing balance)
+      totalBillAmount = previousBalance; // Total is just the previous balance
+      newBalance = previousBalance - paidAmount; // Remaining balance after payment
+    } else {
+      // Regular bill with items: Total = Previous Balance + Current Items
+      totalBillAmount = previousBalance + itemsTotal;
+      newBalance = totalBillAmount - paidAmount; // New balance after payment
     }
 
-    // Create bill record with payment method details - NO BALANCE UPDATE
+    // Create bill record with running balance logic
     const billRecord = {
       customer: selectedCustomer,
       customerPhone: selectedCustomerPhone,
       date: selectedDate,
       items: validItems.length > 0 ? validItems : [{ no: 1, item: 'Balance Payment', weight: '1', rate: paidAmount.toString(), amount: paidAmount }],
-      totalAmount: totalAmount,
+      totalAmount: totalBillAmount,
       paidAmount,
-      balanceAmount: balanceAmount,
+      balanceAmount: newBalance,
       paymentMethod,
       upiType: paymentMethod === 'upi' ? upiType : undefined,
       bankName: paymentMethod === 'check' ? bankName : undefined,
@@ -279,7 +299,7 @@ const Index = () => {
     // Add to billing history
     const savedBill = await addBill(billRecord);
     
-    // Set confirmed bill and show actions - NO BALANCE UPDATE
+    // Set confirmed bill and show actions
     if (savedBill) {
       setConfirmedBill(savedBill);
       setIsBalanceOnlyBill(validItems.length === 0);
@@ -288,13 +308,16 @@ const Index = () => {
     setShowConfirmDialog(false);
   };
 
-  // Generate bill content using exact same format as print preview
+  // Generate bill content using running balance system
   const generateBillContent = (bill: Bill) => {
     const time = new Date(bill.timestamp).toLocaleTimeString();
     
-    // Get actual customer balance same as print preview
-    const customer = customers.find(c => c.name === bill.customer);
-    const previousBalance = customer?.balance || 0;
+    // Get previous balance from bill history (not customer table)
+    const customerBills = bills.filter(b => b.customer === bill.customer && b.id < bill.id);
+    const previousBalance = customerBills.length > 0 
+      ? customerBills.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].balanceAmount || 0
+      : 0;
+    
     const itemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
     const totalBillAmount = previousBalance + itemsTotal;
     const newBalance = totalBillAmount - bill.paidAmount;
@@ -346,7 +369,7 @@ Thank you for your business!
     `.trim();
   };
 
-  // Print current billing form (frontend view)
+  // Print current billing form (frontend view) - UPDATED with running balance system
   const printCurrentBillingForm = () => {
     if (!selectedCustomer) {
       alert('Please select a customer first');
@@ -359,8 +382,7 @@ Thank you for your business!
       return;
     }
 
-    const customer = customers.find(c => c.name === selectedCustomer);
-    const previousBalance = customer?.balance || 0;
+    // Use the previousBalance state (from latest bill) instead of customer table balance
     const itemsTotal = billItems.reduce((sum, item) => sum + item.amount, 0);
     const totalBillAmount = previousBalance + itemsTotal;
     const paidAmount = parseFloat(paymentAmount) || 0;
@@ -516,11 +538,12 @@ Use "Confirm Bill" to save this bill.
     }
   };
 
-  // Reset form with default item - UPDATED to clear cash/gpay amounts
+  // Reset form with default item - UPDATED to clear cash/gpay amounts and reset previous balance
   const resetForm = () => {
     setSelectedCustomer('');
     setSelectedCustomerPhone('');
     setCustomerInput('');
+    setPreviousBalance(0); // Reset previous balance
     // Default to "Chicken Live" instead of empty
     const chickenLiveProduct = products.find(p => p.name.toLowerCase().includes('chicken live')) || 
                               products.find(p => p.name.toLowerCase().includes('live')) ||
@@ -1087,7 +1110,7 @@ Generated by Santhosh Chicken Billing System`;
               </div>
             </div>
 
-            {/* Selected Customer Display with Balance and History - UPDATED with bigger font */}
+            {/* Selected Customer Display with Balance and History - UPDATED with running balance system */}
             {selectedCustomer && (
               <div className="mb-3 space-y-2">
                 <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -1097,10 +1120,10 @@ Generated by Santhosh Chicken Billing System`;
                       <span className="ml-2 text-blue-900 font-medium text-sm">{selectedCustomer}</span>
                       <div className="text-xs text-gray-600">Phone: {selectedCustomerPhone}</div>
                     </div>
-                    {getCustomerBalance(selectedCustomer) > 0 && (
+                    {previousBalance > 0 && (
                       <div className="text-left sm:text-right">
                         <span className="text-red-600 font-bold text-lg">
-                          Previous Balance: ₹{getCustomerBalance(selectedCustomer).toFixed(2)}
+                          Previous Balance: ₹{previousBalance.toFixed(2)}
                         </span>
                       </div>
                     )}
@@ -1184,15 +1207,15 @@ Generated by Santhosh Chicken Billing System`;
               </table>
             </div>
 
-            {/* Updated Total and Payment Section - FIXED calculation display */}
+            {/* Updated Total and Payment Section - UPDATED with running balance system */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-3">
               <div className="bg-gray-50 p-3 rounded-lg space-y-1">
                 <div className="text-sm">Items Total: ₹{totalAmount.toFixed(2)}</div>
-                {selectedCustomer && getCustomerBalance(selectedCustomer) > 0 && (
-                  <div className="text-sm text-red-600">Previous Balance: ₹{getCustomerBalance(selectedCustomer).toFixed(2)}</div>
+                {selectedCustomer && previousBalance > 0 && (
+                  <div className="text-sm text-red-600">Previous Balance: ₹{previousBalance.toFixed(2)}</div>
                 )}
                 <div className="text-xl font-bold border-t pt-1">
-                  Bill Amount: ₹{totalAmount.toFixed(2)}
+                  Total Bill Amount: ₹{(previousBalance + totalAmount).toFixed(2)}
                 </div>
               </div>
               
