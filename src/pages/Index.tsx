@@ -305,11 +305,11 @@ const Index = () => {
       }
     }
     
-    // Calculate the correct previous balance at time of bill creation
-    const currentItemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
-    // Previous balance = current balance - (items total - paid amount)
-    const previousBalance = bill.balanceAmount - currentItemsTotal + bill.paidAmount;
-    const totalBillAmount = previousBalance + currentItemsTotal;
+    // Calculate balances same as print preview
+    const itemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
+    // Previous balance = New balance + Paid amount - Items total
+    const previousBalance = bill.balanceAmount + bill.paidAmount - itemsTotal;
+    const totalBillAmount = previousBalance + itemsTotal;
     
     return `
 SANTHOSH CHICKEN - BILLING SYSTEM
@@ -335,7 +335,7 @@ ${bill.items.map((item, index) =>
 
 --------------------------------
 Previous Balance: ₹${previousBalance.toFixed(2)}
-Current Items: ₹${currentItemsTotal.toFixed(2)}
+Current Items: ₹${itemsTotal.toFixed(2)}
 Total Bill Amount: ₹${totalBillAmount.toFixed(2)}
 Payment Amount: ₹${bill.paidAmount.toFixed(2)}
 New Balance: ₹${bill.balanceAmount.toFixed(2)}${paymentMethodText ? `\nPayment Method: ${paymentMethodText}` : ''}
