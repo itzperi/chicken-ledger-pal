@@ -59,7 +59,8 @@ const Index = () => {
     deleteCustomer,
     addBill,
     updateBill,
-    deleteBill
+    deleteBill,
+    getLatestBalanceByPhone
   } = useSupabaseData(isLoggedIn ? businessId : '');
 
   // State management
@@ -142,24 +143,40 @@ const Index = () => {
     resetForm();
   };
 
-  // Handle customer selection - UPDATED to fetch previous balance from last bill
+  // Handle customer selection - UPDATED to fetch previous balance using phone number
   const handleCustomerSelect = (customerName: string) => {
     const customer = customers.find(c => c.name === customerName);
+    const customerPhone = customer?.phone || '';
+    
     setSelectedCustomer(customerName);
-    setSelectedCustomerPhone(customer?.phone || '');
+    setSelectedCustomerPhone(customerPhone);
     setCustomerInput(customerName);
     setShowCustomerSuggestions(false);
     
-    // Find customer's latest bill to get previous balance
-    const customerBills = bills.filter(bill => bill.customer === customerName);
-    if (customerBills.length > 0) {
-      // Sort by date descending and get the latest bill
-      const latestBill = customerBills.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-      const latestBalance = latestBill.balanceAmount || 0;
+    // Get latest balance using phone number (more reliable than name)
+    if (customerPhone) {
+      const latestBalance = getLatestBalanceByPhone(customerPhone);
       setPreviousBalance(latestBalance);
     } else {
-      // First bill for this customer - no previous balance
       setPreviousBalance(0);
+    }
+  };
+
+  // Handle manual phone entry to auto-fill previous balance
+  const handlePhoneChange = (phone: string) => {
+    setSelectedCustomerPhone(phone);
+    
+    // Auto-fill previous balance when phone is entered
+    if (phone.length >= 10) { // Valid phone number length
+      const latestBalance = getLatestBalanceByPhone(phone);
+      setPreviousBalance(latestBalance);
+      
+      // Try to find existing customer name for this phone
+      const existingCustomer = customers.find(c => c.phone === phone);
+      if (existingCustomer && !selectedCustomer) {
+        setSelectedCustomer(existingCustomer.name);
+        setCustomerInput(existingCustomer.name);
+      }
     }
   };
 

@@ -398,6 +398,17 @@ export const useSupabaseData = (businessId: string) => {
     }
   };
 
+  // Get latest balance for a customer by phone number
+  const getLatestBalanceByPhone = (customerPhone: string): number => {
+    const customerBills = bills.filter(bill => bill.customerPhone === customerPhone);
+    if (customerBills.length > 0) {
+      // Sort by date descending and get the latest bill
+      const latestBill = customerBills.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+      return latestBill.balanceAmount || 0;
+    }
+    return 0; // First bill for this customer
+  };
+
   return {
     products,
     customers,
@@ -412,6 +423,7 @@ export const useSupabaseData = (businessId: string) => {
     deleteCustomer,
     addBill,
     updateBill,
-    deleteBill
+    deleteBill,
+    getLatestBalanceByPhone
   };
 };
