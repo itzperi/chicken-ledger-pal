@@ -265,6 +265,9 @@ const Index = () => {
       setConfirmedBill(savedBill);
       setIsBalanceOnlyBill(true);
       setShowBillActions(true);
+      
+      // Refresh customer data to show updated balance
+      window.location.reload();
     }
   };
 
@@ -321,6 +324,9 @@ const Index = () => {
       setConfirmedBill(savedBill);
       setIsBalanceOnlyBill(validItems.length === 0);
       setShowBillActions(true);
+      
+      // Refresh customer data to show updated balance
+      window.location.reload();
     }
     setShowConfirmDialog(false);
   };
@@ -626,14 +632,10 @@ Use "Confirm Bill" to save this bill.
     alert(`Balance added successfully!`);
   };
 
-  // Get customer balance and history for display - FIXED to use latest bill balance
+  // Get customer balance and history for display - uses database balance
   const getCustomerBalance = (customerName: string) => {
     const customer = customers.find(c => c.name === customerName);
-    if (customer?.phone) {
-      // Use latest balance from bills, not stored customer balance
-      return getLatestBalanceByPhone(customer.phone);
-    }
-    return 0;
+    return customer?.balance || 0;
   };
 
   // Get last billed date for a customer

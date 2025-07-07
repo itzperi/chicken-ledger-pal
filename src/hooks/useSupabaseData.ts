@@ -263,7 +263,7 @@ export const useSupabaseData = (businessId: string) => {
     }
   };
 
-  // Add bill with automatic bill number generation - updated with new payment method
+  // Add bill with automatic bill number generation - updated with new payment method and auto balance update
   const addBill = async (bill: Omit<Bill, 'id' | 'timestamp'>) => {
     try {
       // Create the insert object without bill_number since it will be auto-generated
@@ -311,6 +311,9 @@ export const useSupabaseData = (businessId: string) => {
         gpayAmount: data.gpay_amount ? parseFloat(data.gpay_amount.toString()) : undefined,
         timestamp: new Date(data.created_at || '')
       };
+      
+      // Automatically update customer balance in database
+      await updateCustomerBalance(bill.customer, bill.balanceAmount);
       
       setBills(prev => [newBill, ...prev]);
       return newBill;
