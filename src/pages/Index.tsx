@@ -61,7 +61,8 @@ const Index = () => {
     addBill,
     updateBill,
     deleteBill,
-    getLatestBalanceByPhone
+    getLatestBalanceByPhone,
+    refreshCustomersData
   } = useSupabaseData(isLoggedIn ? businessId : '');
 
   // State management
@@ -213,6 +214,9 @@ const Index = () => {
         const realTimeBalance = customerData.balance ? parseFloat(customerData.balance.toString()) : 0;
         setPreviousBalance(realTimeBalance);
       }
+      
+      // Also refresh the customers list to sync with CustomerManager
+      await refreshCustomersData();
     }
   };
 
@@ -302,6 +306,8 @@ const Index = () => {
       setIsBalanceOnlyBill(true);
       setShowBillActions(true);
       
+      // Critical: Refresh customers data to sync balance across all views
+      await refreshCustomersData();
     }
   };
 
@@ -359,6 +365,8 @@ const Index = () => {
       setIsBalanceOnlyBill(validItems.length === 0);
       setShowBillActions(true);
       
+      // Critical: Refresh customers data to sync balance across all views
+      await refreshCustomersData();
     }
     setShowConfirmDialog(false);
   };

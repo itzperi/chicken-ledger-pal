@@ -45,6 +45,25 @@ export const useSupabaseData = (businessId: string) => {
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Refresh customers data function
+  const refreshCustomersData = async () => {
+    try {
+      const { data: customersData } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('business_id', businessId)
+        .order('name');
+      
+      setCustomers((customersData || []).map(c => ({
+        name: c.name,
+        phone: c.phone,
+        balance: parseFloat(c.balance?.toString() || '0')
+      })));
+    } catch (error) {
+      console.error('Error refreshing customers:', error);
+    }
+  };
+
   // Load data from Supabase
   useEffect(() => {
     const loadData = async () => {
@@ -225,9 +244,13 @@ export const useSupabaseData = (businessId: string) => {
 
       if (error) throw error;
       
+      // Update local state immediately
       setCustomers(prev => prev.map(c => 
         c.name === customerName ? { ...c, balance: newBalance } : c
       ));
+      
+      // Also refresh all customer data to ensure consistency
+      await refreshCustomersData();
     } catch (error) {
       console.error('Error updating customer balance:', error);
       throw error;
@@ -427,6 +450,7 @@ export const useSupabaseData = (businessId: string) => {
     addBill,
     updateBill,
     deleteBill,
-    getLatestBalanceByPhone
+    getLatestBalanceByPhone,
+    refreshCustomersData
   };
 };
