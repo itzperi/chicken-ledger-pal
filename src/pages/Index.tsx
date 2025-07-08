@@ -170,13 +170,6 @@ const Index = () => {
       setPreviousBalance(0);
     }
   };
-    if (customerPhone) {
-      const latestBalance = getLatestBalanceByPhone(customerPhone);
-      setPreviousBalance(latestBalance);
-    } else {
-      setPreviousBalance(0);
-    }
-  };
 
   // Handle manual phone entry to auto-fill previous balance - FETCH FROM DATABASE
   const handlePhoneChange = async (phone: string) => {
