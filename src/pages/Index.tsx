@@ -62,7 +62,9 @@ const Index = () => {
     updateBill,
     deleteBill,
     getLatestBalanceByPhone,
-    refreshCustomersData
+    refreshCustomersData,
+    getRealTimeBalance,
+    getRealTimeBalanceByPhone
   } = useSupabaseData(isLoggedIn ? businessId : '');
 
   // State management
@@ -145,78 +147,110 @@ const Index = () => {
     resetForm();
   };
 
-  // Handle customer selection - FETCH FRESH BALANCE FROM DATABASE
+  // Handle customer selection - BULLETPROOF REAL-TIME BALANCE FETCH
   const handleCustomerSelect = async (customerName: string) => {
-    const customer = customers.find(c => c.name === customerName);
-    const customerPhone = customer?.phone || '';
-    
-    setSelectedCustomer(customerName);
-    setSelectedCustomerPhone(customerPhone);
-    setCustomerInput(customerName);
-    setShowCustomerSuggestions(false);
-    
-    // CRITICAL: Always fetch the latest balance from database, not computed from bills
-    if (customer) {
-      // Fetch real-time balance from database
-      const { data: customerData } = await supabase
-        .from('customers')
-        .select('balance')
-        .eq('name', customerName)
-        .eq('business_id', businessId)
-        .single();
+    try {
+      console.log(`[BILLING PAGE] Customer selected: ${customerName}`);
       
-      const realTimeBalance = customerData?.balance ? parseFloat(customerData.balance.toString()) : 0;
-      setPreviousBalance(realTimeBalance);
-    } else {
+      const customer = customers.find(c => c.name === customerName);
+      const customerPhone = customer?.phone || '';
+      
+      setSelectedCustomer(customerName);
+      setSelectedCustomerPhone(customerPhone);
+      setCustomerInput(customerName);
+      setShowCustomerSuggestions(false);
+      
+      // CRITICAL: Always fetch the latest balance from database, NEVER use cached data
+      if (customer) {
+        console.log(`[BILLING PAGE] Fetching real-time balance for: ${customerName}`);
+        
+        const realTimeBalance = await getRealTimeBalance(customerName);
+        setPreviousBalance(realTimeBalance);
+        
+        console.log(`[BILLING PAGE] Balance set for billing page: ₹${realTimeBalance}`);
+        
+        // Verify consistency with customer list
+        const customerInList = customers.find(c => c.name === customerName);
+        if (customerInList && Math.abs(customerInList.balance - realTimeBalance) > 0.01) {
+          console.warn(`[BILLING PAGE] Balance mismatch detected! List: ₹${customerInList.balance}, DB: ₹${realTimeBalance}`);
+          // Force refresh customers to sync
+          await refreshCustomersData();
+        }
+      } else {
+        console.log(`[BILLING PAGE] Customer not found in list, setting balance to 0`);
+        setPreviousBalance(0);
+      }
+    } catch (error) {
+      console.error(`[BILLING PAGE] Error selecting customer ${customerName}:`, error);
+      setPreviousBalance(0);
+      alert('Error fetching customer balance. Please try again.');
+    }
+  };
+
+  // Handle manual phone entry - BULLETPROOF REAL-TIME BALANCE FETCH
+  const handlePhoneChange = async (phone: string) => {
+    try {
+      setSelectedCustomerPhone(phone);
+      
+      console.log(`[BILLING PAGE] Phone entered: ${phone}`);
+      
+      // Auto-fill previous balance when phone is entered - FETCH REAL-TIME FROM DATABASE
+      if (phone.length >= 10) { // Valid phone number length
+        console.log(`[BILLING PAGE] Fetching balance for phone: ${phone}`);
+        
+        const result = await getRealTimeBalanceByPhone(phone);
+        setPreviousBalance(result.balance);
+        
+        console.log(`[BILLING PAGE] Balance retrieved for phone ${phone}: ₹${result.balance}`);
+        
+        // Auto-fill customer name if found
+        if (result.name && !selectedCustomer) {
+          setSelectedCustomer(result.name);
+          setCustomerInput(result.name);
+          console.log(`[BILLING PAGE] Auto-filled customer name: ${result.name}`);
+        }
+        
+        // Verify consistency
+        if (result.name) {
+          const customerInList = customers.find(c => c.name === result.name);
+          if (customerInList && Math.abs(customerInList.balance - result.balance) > 0.01) {
+            console.warn(`[BILLING PAGE] Phone lookup balance mismatch! List: ₹${customerInList.balance}, DB: ₹${result.balance}`);
+            await refreshCustomersData();
+          }
+        }
+      } else {
+        setPreviousBalance(0);
+        console.log(`[BILLING PAGE] Phone incomplete, balance reset to 0`);
+      }
+    } catch (error) {
+      console.error(`[BILLING PAGE] Error handling phone change for ${phone}:`, error);
       setPreviousBalance(0);
     }
   };
 
-  // Handle manual phone entry to auto-fill previous balance - FETCH FROM DATABASE
-  const handlePhoneChange = async (phone: string) => {
-    setSelectedCustomerPhone(phone);
-    
-    // Auto-fill previous balance when phone is entered - FETCH REAL-TIME FROM DATABASE
-    if (phone.length >= 10) { // Valid phone number length
-      const { data: customerData } = await supabase
-        .from('customers')
-        .select('name, balance')
-        .eq('phone', phone)
-        .eq('business_id', businessId)
-        .single();
-      
-      if (customerData) {
-        const realTimeBalance = customerData.balance ? parseFloat(customerData.balance.toString()) : 0;
-        setPreviousBalance(realTimeBalance);
-        
-        // Auto-fill customer name if found
-        if (!selectedCustomer) {
-          setSelectedCustomer(customerData.name);
-          setCustomerInput(customerData.name);
-        }
-      } else {
-        setPreviousBalance(0);
-      }
-    }
-  };
-
-  // Refresh balance from database - MANUAL REFRESH FUNCTION
+  // Refresh balance from database - BULLETPROOF MANUAL REFRESH
   const refreshCustomerBalance = async () => {
-    if (selectedCustomer) {
-      const { data: customerData } = await supabase
-        .from('customers')
-        .select('balance')
-        .eq('name', selectedCustomer)
-        .eq('business_id', businessId)
-        .single();
-      
-      if (customerData) {
-        const realTimeBalance = customerData.balance ? parseFloat(customerData.balance.toString()) : 0;
-        setPreviousBalance(realTimeBalance);
+    try {
+      if (!selectedCustomer) {
+        console.log('[BILLING PAGE] No customer selected for balance refresh');
+        return;
       }
+      
+      console.log(`[BILLING PAGE] Manual balance refresh requested for: ${selectedCustomer}`);
+      
+      const realTimeBalance = await getRealTimeBalance(selectedCustomer);
+      setPreviousBalance(realTimeBalance);
+      
+      console.log(`[BILLING PAGE] Manual refresh complete: ₹${realTimeBalance}`);
       
       // Also refresh the customers list to sync with CustomerManager
       await refreshCustomersData();
+      
+      // Show success feedback
+      alert(`Balance refreshed: ₹${realTimeBalance.toFixed(2)}`);
+    } catch (error) {
+      console.error(`[BILLING PAGE] Error refreshing balance for ${selectedCustomer}:`, error);
+      alert('Error refreshing balance. Please try again.');
     }
   };
 

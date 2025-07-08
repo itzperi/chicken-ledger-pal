@@ -45,22 +45,96 @@ export const useSupabaseData = (businessId: string) => {
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Refresh customers data function
+  // Refresh customers data function - BULLETPROOF BALANCE SYNC
   const refreshCustomersData = async () => {
     try {
-      const { data: customersData } = await supabase
+      console.log('[BALANCE SYNC] Fetching latest customer data from database...');
+      const { data: customersData, error } = await supabase
         .from('customers')
         .select('*')
         .eq('business_id', businessId)
         .order('name');
       
-      setCustomers((customersData || []).map(c => ({
+      if (error) {
+        console.error('[BALANCE SYNC] Database query failed:', error);
+        throw error;
+      }
+      
+      if (!customersData) {
+        console.warn('[BALANCE SYNC] No customer data received from database');
+        return;
+      }
+      
+      const mappedCustomers = customersData.map(c => ({
         name: c.name,
         phone: c.phone,
         balance: parseFloat(c.balance?.toString() || '0')
-      })));
+      }));
+      
+      console.log('[BALANCE SYNC] Successfully updated customer balances:', 
+        mappedCustomers.map(c => `${c.name}: ₹${c.balance}`));
+      
+      setCustomers(mappedCustomers);
     } catch (error) {
-      console.error('Error refreshing customers:', error);
+      console.error('[BALANCE SYNC] Critical error refreshing customers:', error);
+      // Still continue operation even if refresh fails
+    }
+  };
+
+  // Get real-time customer balance by name - DEDICATED BALANCE FETCHER
+  const getRealTimeBalance = async (customerName: string): Promise<number> => {
+    try {
+      console.log(`[BALANCE FETCH] Getting real-time balance for: ${customerName}`);
+      
+      const { data: customerData, error } = await supabase
+        .from('customers')
+        .select('balance')
+        .eq('name', customerName)
+        .eq('business_id', businessId)
+        .single();
+      
+      if (error) {
+        console.error(`[BALANCE FETCH] Database error for ${customerName}:`, error);
+        return 0;
+      }
+      
+      const balance = customerData?.balance ? parseFloat(customerData.balance.toString()) : 0;
+      console.log(`[BALANCE FETCH] Retrieved balance for ${customerName}: ₹${balance}`);
+      
+      return balance;
+    } catch (error) {
+      console.error(`[BALANCE FETCH] Critical error fetching balance for ${customerName}:`, error);
+      return 0;
+    }
+  };
+
+  // Get real-time customer balance by phone - DEDICATED BALANCE FETCHER
+  const getRealTimeBalanceByPhone = async (phone: string): Promise<{balance: number, name?: string}> => {
+    try {
+      console.log(`[BALANCE FETCH] Getting real-time balance for phone: ${phone}`);
+      
+      const { data: customerData, error } = await supabase
+        .from('customers')
+        .select('name, balance')
+        .eq('phone', phone)
+        .eq('business_id', businessId)
+        .single();
+      
+      if (error) {
+        console.error(`[BALANCE FETCH] Database error for phone ${phone}:`, error);
+        return { balance: 0 };
+      }
+      
+      const balance = customerData?.balance ? parseFloat(customerData.balance.toString()) : 0;
+      console.log(`[BALANCE FETCH] Retrieved balance for phone ${phone}: ₹${balance}, Customer: ${customerData?.name}`);
+      
+      return { 
+        balance, 
+        name: customerData?.name 
+      };
+    } catch (error) {
+      console.error(`[BALANCE FETCH] Critical error fetching balance for phone ${phone}:`, error);
+      return { balance: 0 };
     }
   };
 
@@ -236,23 +310,32 @@ export const useSupabaseData = (businessId: string) => {
 
   const updateCustomerBalance = async (customerName: string, newBalance: number) => {
     try {
+      console.log(`[BALANCE UPDATE] Updating ${customerName} balance to ₹${newBalance}`);
+      
       const { error } = await supabase
         .from('customers')
         .update({ balance: newBalance })
         .eq('name', customerName)
         .eq('business_id', businessId);
 
-      if (error) throw error;
+      if (error) {
+        console.error(`[BALANCE UPDATE] Database update failed for ${customerName}:`, error);
+        throw error;
+      }
       
-      // Update local state immediately
+      console.log(`[BALANCE UPDATE] Successfully updated ${customerName} balance in database`);
+      
+      // Update local state immediately for instant UI feedback
       setCustomers(prev => prev.map(c => 
         c.name === customerName ? { ...c, balance: newBalance } : c
       ));
       
-      // Also refresh all customer data to ensure consistency
+      // Critical: Refresh all customer data to ensure 100% synchronization across all views
       await refreshCustomersData();
+      
+      console.log(`[BALANCE UPDATE] Balance synchronization complete for ${customerName}`);
     } catch (error) {
-      console.error('Error updating customer balance:', error);
+      console.error(`[BALANCE UPDATE] Critical error updating balance for ${customerName}:`, error);
       throw error;
     }
   };
@@ -451,6 +534,8 @@ export const useSupabaseData = (businessId: string) => {
     updateBill,
     deleteBill,
     getLatestBalanceByPhone,
-    refreshCustomersData
+    refreshCustomersData,
+    getRealTimeBalance,
+    getRealTimeBalanceByPhone
   };
 };
