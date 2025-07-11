@@ -456,8 +456,18 @@ const Index = () => {
     const billPreviousBalance = uiPreviousBalance;
     
     const itemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
-    const totalBillAmount = billPreviousBalance + itemsTotal;
-    const newBalance = totalBillAmount - bill.paidAmount;
+    
+    // CRITICAL FIX: Handle payment-only transactions correctly
+    let totalBillAmount, newBalance;
+    if (bill.items.length === 0 && bill.paidAmount > 0) {
+      // Payment-only transaction: no items, only payment
+      totalBillAmount = 0; // No bill amount for payment-only
+      newBalance = billPreviousBalance - bill.paidAmount; // Direct balance reduction
+    } else {
+      // Normal transaction with items
+      totalBillAmount = billPreviousBalance + itemsTotal;
+      newBalance = totalBillAmount - bill.paidAmount;
+    }
     
     // Add logging to verify calculations match UI
     console.log(`[BILL GENERATION] Calculation breakdown:
@@ -498,9 +508,10 @@ Phone: ${bill.customerPhone}
 
 ITEMS:
 ------
-${bill.items.map((item, index) => 
-  `${index + 1}. ${item.item} - ${item.weight}kg @ ₹${item.rate}/kg = ₹${item.amount.toFixed(2)}`
-).join('\n')}
+${bill.items.length === 0 ? 'No items - Payment Only Transaction' : 
+  bill.items.map((item, index) => 
+    `${index + 1}. ${item.item} - ${item.weight}kg @ ₹${item.rate}/kg = ₹${item.amount.toFixed(2)}`
+  ).join('\n')}
 
 --------------------------------
 Previous Balance: ₹${billPreviousBalance.toFixed(2)}
