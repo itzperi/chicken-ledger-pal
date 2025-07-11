@@ -448,29 +448,20 @@ const Index = () => {
   };
 
   // Generate bill content using running balance system - FIXED SYNCHRONIZATION ISSUE
-  const generateBillContent = async (bill: Bill) => {
+  const generateBillContent = async (bill: Bill, uiPreviousBalance: number) => {
     const time = new Date(bill.timestamp).toLocaleTimeString();
     
-    // CRITICAL FIX: Use the same real-time balance source as the UI
-    // This ensures printed bills match exactly what's displayed in the UI
-    let previousBalance = 0;
-    try {
-      previousBalance = await getRealTimeBalance(bill.customer);
-      console.log(`[BILL GENERATION] Using real-time balance for ${bill.customer}: ₹${previousBalance}`);
-    } catch (error) {
-      console.error(`[BILL GENERATION] Failed to get real-time balance, falling back to 0:`, error);
-      previousBalance = 0;
-    }
+    // CRITICAL FIX: Use the previous balance from UI state (before the bill was created)
+    // This ensures printed bills match exactly what was displayed in the UI
+    const billPreviousBalance = uiPreviousBalance;
     
-    // CRITICAL FIX: Use bill.totalAmount directly - it already includes items total
-    // Don't recalculate items total to avoid double-addition
     const itemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
-    const totalBillAmount = previousBalance + itemsTotal;
+    const totalBillAmount = billPreviousBalance + itemsTotal;
     const newBalance = totalBillAmount - bill.paidAmount;
     
     // Add logging to verify calculations match UI
     console.log(`[BILL GENERATION] Calculation breakdown:
-      Previous Balance: ₹${previousBalance}
+      Previous Balance: ₹${billPreviousBalance}
       Items Total: ₹${itemsTotal}
       Total Bill Amount: ₹${totalBillAmount}
       Paid Amount: ₹${bill.paidAmount}
@@ -512,7 +503,7 @@ ${bill.items.map((item, index) =>
 ).join('\n')}
 
 --------------------------------
-Previous Balance: ₹${previousBalance.toFixed(2)}
+Previous Balance: ₹${billPreviousBalance.toFixed(2)}
 Current Items: ₹${itemsTotal.toFixed(2)}
 Total Bill Amount: ₹${totalBillAmount.toFixed(2)}
 Payment Amount: ₹${bill.paidAmount.toFixed(2)}
@@ -613,7 +604,7 @@ Use "Confirm Bill" to save this bill.
 
   // Print to printer (for confirmed bills)
   const printBill = async (bill: Bill) => {
-    const printContent = await generateBillContent(bill);
+    const printContent = await generateBillContent(bill, previousBalance);
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(`
@@ -650,7 +641,7 @@ Use "Confirm Bill" to save this bill.
 
   // Save as document
   const saveAsDocument = async (bill: Bill) => {
-    const billContent = await generateBillContent(bill);
+    const billContent = await generateBillContent(bill, previousBalance);
     const blob = new Blob([billContent], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -664,7 +655,7 @@ Use "Confirm Bill" to save this bill.
 
   // Send to WhatsApp
   const sendToWhatsApp = async (bill: Bill) => {
-    const billContent = await generateBillContent(bill);
+    const billContent = await generateBillContent(bill, previousBalance);
     const encodedMessage = encodeURIComponent(billContent);
     const phoneNumber = bill.customerPhone.replace(/\D/g, '');
     const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodedMessage}`;
