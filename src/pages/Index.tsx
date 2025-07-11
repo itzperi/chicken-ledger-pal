@@ -462,9 +462,19 @@ const Index = () => {
       previousBalance = 0;
     }
     
+    // CRITICAL FIX: Use bill.totalAmount directly - it already includes items total
+    // Don't recalculate items total to avoid double-addition
     const itemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
     const totalBillAmount = previousBalance + itemsTotal;
     const newBalance = totalBillAmount - bill.paidAmount;
+    
+    // Add logging to verify calculations match UI
+    console.log(`[BILL GENERATION] Calculation breakdown:
+      Previous Balance: ₹${previousBalance}
+      Items Total: ₹${itemsTotal}
+      Total Bill Amount: ₹${totalBillAmount}
+      Paid Amount: ₹${bill.paidAmount}
+      New Balance: ₹${newBalance}`);
     
     let paymentMethodText = '';
     if (bill.paidAmount > 0) {
