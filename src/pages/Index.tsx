@@ -420,7 +420,7 @@ const Index = () => {
       customer: selectedCustomer,
       customerPhone: selectedCustomerPhone,
       date: selectedDate,
-      items: validItems.length > 0 ? validItems : [{ no: 1, item: 'Balance Payment', weight: '1', rate: paidAmount.toString(), amount: paidAmount }],
+      items: validItems, // Use actual items only, no fake items for payment-only transactions
       totalAmount: totalBillAmount,
       paidAmount,
       balanceAmount: newBalance,
