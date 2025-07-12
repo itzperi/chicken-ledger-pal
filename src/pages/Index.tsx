@@ -364,24 +364,27 @@ const Index = () => {
       return;
     }
 
-    // CRITICAL VALIDATION: Check payment amount accuracy
+    // PAYMENT VALIDATION: Allow overpayments for advance credits
     if (hasPaymentAmount) {
       const paidAmount = parseFloat(paymentAmount);
       const itemsTotal = validItems.reduce((sum, item) => sum + item.amount, 0);
-      let requiredAmount;
       
       if (validItems.length === 0 && existingBalance > 0) {
-        // Balance-only payment: payment can be any amount up to the existing balance
-        if (paidAmount > existingBalance) {
-          alert(`Payment amount (₹${paidAmount.toFixed(2)}) cannot exceed existing balance (₹${existingBalance.toFixed(2)}). Please enter a valid amount.`);
-          return;
+        // Balance-only payment: Allow overpayment for advance credit
+        const potentialNewBalance = existingBalance - paidAmount;
+        if (potentialNewBalance < 0) {
+          // Show advance payment message
+          const advanceAmount = Math.abs(potentialNewBalance);
+          console.log(`Advance payment: ₹${advanceAmount.toFixed(2)} will be credited to customer`);
         }
       } else {
-        // Regular bill with items: payment can be any amount (partial payments allowed)
+        // Regular bill with items: Allow overpayment for advance credit
         const totalBillAmount = existingBalance + itemsTotal;
-        if (paidAmount > totalBillAmount) {
-          alert(`Payment amount (₹${paidAmount.toFixed(2)}) cannot exceed total bill amount (₹${totalBillAmount.toFixed(2)}). Please enter a valid amount.`);
-          return;
+        const potentialNewBalance = totalBillAmount - paidAmount;
+        if (potentialNewBalance < 0) {
+          // Show advance payment message
+          const advanceAmount = Math.abs(potentialNewBalance);
+          console.log(`Advance payment: ₹${advanceAmount.toFixed(2)} will be credited to customer`);
         }
       }
       
@@ -471,10 +474,10 @@ const Index = () => {
       newBalance = previousBalance - paidAmount; // Remaining balance after payment
       requiredAmount = previousBalance; // For validation, but partial payments are allowed
       
-      // Validate payment amount for balance-only payments
+      // Allow overpayment for advance credit on balance-only payments
       if (paidAmount > previousBalance) {
-        alert(`Payment amount (₹${paidAmount.toFixed(2)}) cannot exceed existing balance (₹${previousBalance.toFixed(2)}). Please enter a valid amount.`);
-        return;
+        const advanceAmount = paidAmount - previousBalance;
+        console.log(`Advance payment: ₹${advanceAmount.toFixed(2)} will be credited to customer`);
       }
     } else {
       // Regular bill with items: Total = Previous Balance + Current Items
@@ -482,10 +485,10 @@ const Index = () => {
       newBalance = totalBillAmount - paidAmount; // New balance after payment
       requiredAmount = totalBillAmount; // For validation, but partial payments are allowed
       
-      // Validate payment amount for regular bills
+      // Allow overpayment for advance credit on regular bills
       if (paidAmount > totalBillAmount) {
-        alert(`Payment amount (₹${paidAmount.toFixed(2)}) cannot exceed total bill amount (₹${totalBillAmount.toFixed(2)}). Please enter a valid amount.`);
-        return;
+        const advanceAmount = paidAmount - totalBillAmount;
+        console.log(`Advance payment: ₹${advanceAmount.toFixed(2)} will be credited to customer`);
       }
     }
 
