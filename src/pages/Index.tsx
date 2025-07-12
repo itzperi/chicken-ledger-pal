@@ -324,7 +324,29 @@ const Index = () => {
     }
   };
 
-  // Updated function to show confirmation dialog
+  // ENHANCED PAYMENT VALIDATION FUNCTION
+  const validatePaymentAmount = (paidAmount: number, requiredAmount: number): { isValid: boolean; message: string } => {
+    const tolerance = 0.01; // Allow 1 cent tolerance for rounding
+    const difference = Math.abs(paidAmount - requiredAmount);
+    
+    if (difference > tolerance) {
+      if (paidAmount > requiredAmount) {
+        return {
+          isValid: false,
+          message: `Payment amount (₹${paidAmount.toFixed(2)}) exceeds required amount (₹${requiredAmount.toFixed(2)}) by ₹${(paidAmount - requiredAmount).toFixed(2)}. Please enter the exact amount.`
+        };
+      } else {
+        return {
+          isValid: false,
+          message: `Payment amount (₹${paidAmount.toFixed(2)}) is insufficient. Required: ₹${requiredAmount.toFixed(2)}. Shortfall: ₹${(requiredAmount - paidAmount).toFixed(2)}.`
+        };
+      }
+    }
+    
+    return { isValid: true, message: '' };
+  };
+
+  // Updated function to show confirmation dialog with enhanced validation
   const handleShowConfirmDialog = () => {
     if (!selectedCustomer) {
       alert('Please select a customer');
@@ -342,8 +364,27 @@ const Index = () => {
       return;
     }
 
-    // If payment amount is entered, show payment method selection
+    // CRITICAL VALIDATION: Check payment amount accuracy
     if (hasPaymentAmount) {
+      const paidAmount = parseFloat(paymentAmount);
+      const itemsTotal = validItems.reduce((sum, item) => sum + item.amount, 0);
+      let requiredAmount;
+      
+      if (validItems.length === 0 && existingBalance > 0) {
+        // Balance-only payment: payment can be any amount up to the existing balance
+        if (paidAmount > existingBalance) {
+          alert(`Payment amount (₹${paidAmount.toFixed(2)}) cannot exceed existing balance (₹${existingBalance.toFixed(2)}). Please enter a valid amount.`);
+          return;
+        }
+      } else {
+        // Regular bill with items: payment can be any amount (partial payments allowed)
+        const totalBillAmount = existingBalance + itemsTotal;
+        if (paidAmount > totalBillAmount) {
+          alert(`Payment amount (₹${paidAmount.toFixed(2)}) cannot exceed total bill amount (₹${totalBillAmount.toFixed(2)}). Please enter a valid amount.`);
+          return;
+        }
+      }
+      
       setShowConfirmDialog(true);
     } else {
       // No payment amount - direct bill creation for balance
@@ -387,15 +428,34 @@ const Index = () => {
     }
   };
 
-  // Handle bill confirmation with payment (Case 2) - UPDATED with running balance logic
+  // Handle bill confirmation with payment (Case 2) - ENHANCED with comprehensive validation
   const handleConfirmBill = async () => {
     let paidAmount = 0;
     
-    // Calculate paid amount based on payment method
+    // Calculate paid amount based on payment method with validation
     if (paymentMethod === 'cash_gpay') {
-      paidAmount = (parseFloat(cashAmount) || 0) + (parseFloat(gpayAmount) || 0);
+      const cash = parseFloat(cashAmount) || 0;
+      const gpay = parseFloat(gpayAmount) || 0;
+      
+      // Validate individual amounts
+      if (cash < 0 || gpay < 0) {
+        alert('Cash and GPay amounts cannot be negative. Please enter valid amounts.');
+        return;
+      }
+      
+      if (cash === 0 && gpay === 0) {
+        alert('Please enter at least one payment amount (Cash or GPay).');
+        return;
+      }
+      
+      paidAmount = cash + gpay;
     } else {
       paidAmount = parseFloat(paymentAmount) || 0;
+      
+      if (paidAmount <= 0) {
+        alert('Payment amount must be greater than zero.');
+        return;
+      }
     }
     
     // Calculate current items total
@@ -403,16 +463,43 @@ const Index = () => {
     const validItems = billItems.filter(item => item.item && item.weight && item.rate);
     
     // Running balance calculation
-    let totalBillAmount, newBalance;
+    let totalBillAmount, newBalance, requiredAmount;
     
     if (validItems.length === 0 && previousBalance > 0) {
       // This is a balance-only payment (no new items, just paying existing balance)
       totalBillAmount = previousBalance; // Total is just the previous balance
       newBalance = previousBalance - paidAmount; // Remaining balance after payment
+      requiredAmount = previousBalance; // For validation, but partial payments are allowed
+      
+      // Validate payment amount for balance-only payments
+      if (paidAmount > previousBalance) {
+        alert(`Payment amount (₹${paidAmount.toFixed(2)}) cannot exceed existing balance (₹${previousBalance.toFixed(2)}). Please enter a valid amount.`);
+        return;
+      }
     } else {
       // Regular bill with items: Total = Previous Balance + Current Items
       totalBillAmount = previousBalance + itemsTotal;
       newBalance = totalBillAmount - paidAmount; // New balance after payment
+      requiredAmount = totalBillAmount; // For validation, but partial payments are allowed
+      
+      // Validate payment amount for regular bills
+      if (paidAmount > totalBillAmount) {
+        alert(`Payment amount (₹${paidAmount.toFixed(2)}) cannot exceed total bill amount (₹${totalBillAmount.toFixed(2)}). Please enter a valid amount.`);
+        return;
+      }
+    }
+
+    // Additional validation for mixed payment methods
+    if (paymentMethod === 'cash_gpay') {
+      const cash = parseFloat(cashAmount) || 0;
+      const gpay = parseFloat(gpayAmount) || 0;
+      
+      console.log(`[PAYMENT VALIDATION] Mixed payment validation:
+        Cash Amount: ₹${cash.toFixed(2)}
+        GPay Amount: ₹${gpay.toFixed(2)}
+        Total Paid: ₹${paidAmount.toFixed(2)}
+        Required Amount: ₹${requiredAmount.toFixed(2)}
+        Validation: ${paidAmount <= requiredAmount ? 'PASSED' : 'FAILED'}`);
     }
 
     // Create bill record with running balance logic
@@ -1433,6 +1520,40 @@ Generated by Santhosh Chicken Billing System`;
                   className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter amount paid"
                 />
+                {/* Real-time validation feedback */}
+                {paymentAmount && (() => {
+                  const paidAmount = parseFloat(paymentAmount) || 0;
+                  const itemsTotal = billItems.filter(item => item.item && item.weight && item.rate).reduce((sum, item) => sum + item.amount, 0);
+                  const validItems = billItems.filter(item => item.item && item.weight && item.rate);
+                  
+                  let requiredAmount;
+                  if (validItems.length === 0 && previousBalance > 0) {
+                    requiredAmount = previousBalance;
+                  } else {
+                    requiredAmount = previousBalance + itemsTotal;
+                  }
+                  
+                  if (paidAmount > requiredAmount) {
+                    return (
+                      <div className="text-red-600 text-sm mt-1">
+                        ⚠️ Exceeds required amount by ₹{(paidAmount - requiredAmount).toFixed(2)}
+                      </div>
+                    );
+                  } else if (paidAmount > 0 && paidAmount < requiredAmount) {
+                    return (
+                      <div className="text-yellow-600 text-sm mt-1">
+                        ℹ️ Partial payment: ₹{(requiredAmount - paidAmount).toFixed(2)} remaining
+                      </div>
+                    );
+                  } else if (paidAmount === requiredAmount) {
+                    return (
+                      <div className="text-green-600 text-sm mt-1">
+                        ✓ Full payment amount
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
               
               <div className="flex flex-col gap-2">
@@ -1570,27 +1691,166 @@ Generated by Santhosh Chicken Billing System`;
                           className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                           placeholder="GPay Amount"
                         />
-                        <div className="text-sm text-gray-600">
-                          Total: ₹{((parseFloat(cashAmount) || 0) + (parseFloat(gpayAmount) || 0)).toFixed(2)}
+                        <div className="text-sm">
+                          <div className="text-gray-600">
+                            Total: ₹{((parseFloat(cashAmount) || 0) + (parseFloat(gpayAmount) || 0)).toFixed(2)}
+                          </div>
+                          {/* Real-time validation feedback for mixed payments */}
+                          {(() => {
+                            const cash = parseFloat(cashAmount) || 0;
+                            const gpay = parseFloat(gpayAmount) || 0;
+                            const totalPaid = cash + gpay;
+                            const itemsTotal = billItems.filter(item => item.item && item.weight && item.rate).reduce((sum, item) => sum + item.amount, 0);
+                            const validItems = billItems.filter(item => item.item && item.weight && item.rate);
+                            
+                            let requiredAmount;
+                            if (validItems.length === 0 && previousBalance > 0) {
+                              requiredAmount = previousBalance;
+                            } else {
+                              requiredAmount = previousBalance + itemsTotal;
+                            }
+                            
+                            if (totalPaid > requiredAmount) {
+                              return (
+                                <div className="text-red-600 text-xs mt-1">
+                                  ⚠️ Exceeds required amount by ₹{(totalPaid - requiredAmount).toFixed(2)}
+                                </div>
+                              );
+                            } else if (totalPaid > 0 && totalPaid < requiredAmount) {
+                              return (
+                                <div className="text-yellow-600 text-xs mt-1">
+                                  ℹ️ Partial payment: ₹{(requiredAmount - totalPaid).toFixed(2)} remaining
+                                </div>
+                              );
+                            } else if (totalPaid === requiredAmount) {
+                              return (
+                                <div className="text-green-600 text-xs mt-1">
+                                  ✓ Full payment amount
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                       </div>
                     )}
                   </div>
                   
-                  {/* Confirmation Buttons */}
+                  {/* Payment Validation Summary */}
+                  {(() => {
+                    let paidAmount = 0;
+                    if (paymentMethod === 'cash_gpay') {
+                      paidAmount = (parseFloat(cashAmount) || 0) + (parseFloat(gpayAmount) || 0);
+                    } else {
+                      paidAmount = parseFloat(paymentAmount) || 0;
+                    }
+                    
+                    const itemsTotal = billItems.filter(item => item.item && item.weight && item.rate).reduce((sum, item) => sum + item.amount, 0);
+                    const validItems = billItems.filter(item => item.item && item.weight && item.rate);
+                    
+                    let requiredAmount;
+                    if (validItems.length === 0 && previousBalance > 0) {
+                      requiredAmount = previousBalance;
+                    } else {
+                      requiredAmount = previousBalance + itemsTotal;
+                    }
+                    
+                    const difference = paidAmount - requiredAmount;
+                    const isValidPayment = paidAmount > 0 && paidAmount <= requiredAmount;
+                    
+                    return (
+                      <div className="mb-4 p-3 bg-gray-50 rounded-lg border">
+                        <h4 className="font-medium text-gray-800 mb-2">Payment Summary</h4>
+                        <div className="text-sm space-y-1">
+                          <div className="flex justify-between">
+                            <span>Previous Balance:</span>
+                            <span>₹{previousBalance.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Current Items:</span>
+                            <span>₹{itemsTotal.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between font-medium border-t pt-1">
+                            <span>Total Amount:</span>
+                            <span>₹{requiredAmount.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Payment Amount:</span>
+                            <span className={paidAmount > requiredAmount ? 'text-red-600' : 'text-gray-900'}>
+                              ₹{paidAmount.toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between font-medium border-t pt-1">
+                            <span>New Balance:</span>
+                            <span>₹{(requiredAmount - paidAmount).toFixed(2)}</span>
+                          </div>
+                          
+                          {paidAmount > requiredAmount && (
+                            <div className="text-red-600 text-xs mt-2 p-2 bg-red-50 rounded border border-red-200">
+                              ⚠️ Warning: Payment exceeds total amount by ₹{difference.toFixed(2)}
+                            </div>
+                          )}
+                          {paidAmount > 0 && paidAmount < requiredAmount && (
+                            <div className="text-yellow-600 text-xs mt-2 p-2 bg-yellow-50 rounded border border-yellow-200">
+                              ℹ️ Partial payment: ₹{(requiredAmount - paidAmount).toFixed(2)} will remain as balance
+                            </div>
+                          )}
+                          {paidAmount === requiredAmount && paidAmount > 0 && (
+                            <div className="text-green-600 text-xs mt-2 p-2 bg-green-50 rounded border border-green-200">
+                              ✓ Full payment - balance will be cleared
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  
+                  {/* Confirmation Buttons with Validation */}
                   <div className="flex gap-4">
-                    <button
-                      onClick={handleConfirmBill}
-                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                    >
-                      Yes - Confirm
-                    </button>
-                    <button
-                      onClick={handleCancelConfirm}
-                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                    >
-                      No - Cancel
-                    </button>
+                    {(() => {
+                      let paidAmount = 0;
+                      if (paymentMethod === 'cash_gpay') {
+                        paidAmount = (parseFloat(cashAmount) || 0) + (parseFloat(gpayAmount) || 0);
+                      } else {
+                        paidAmount = parseFloat(paymentAmount) || 0;
+                      }
+                      
+                      const itemsTotal = billItems.filter(item => item.item && item.weight && item.rate).reduce((sum, item) => sum + item.amount, 0);
+                      const validItems = billItems.filter(item => item.item && item.weight && item.rate);
+                      
+                      let requiredAmount;
+                      if (validItems.length === 0 && previousBalance > 0) {
+                        requiredAmount = previousBalance;
+                      } else {
+                        requiredAmount = previousBalance + itemsTotal;
+                      }
+                      
+                      const isValidPayment = paidAmount > 0 && paidAmount <= requiredAmount;
+                      const hasExcessPayment = paidAmount > requiredAmount;
+                      
+                      return (
+                        <>
+                          <button
+                            onClick={hasExcessPayment ? undefined : handleConfirmBill}
+                            disabled={hasExcessPayment}
+                            className={`flex-1 px-4 py-2 rounded-lg font-medium ${
+                              hasExcessPayment 
+                                ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
+                                : 'bg-green-600 text-white hover:bg-green-700'
+                            }`}
+                            title={hasExcessPayment ? 'Cannot confirm: Payment amount exceeds total' : 'Confirm payment'}
+                          >
+                            {hasExcessPayment ? 'Cannot Confirm - Excess Payment' : 'Yes - Confirm'}
+                          </button>
+                          <button
+                            onClick={handleCancelConfirm}
+                            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                          >
+                            No - Cancel
+                          </button>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
