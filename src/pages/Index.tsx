@@ -461,7 +461,7 @@ const Index = () => {
     let totalBillAmount, newBalance;
     if (bill.items.length === 0 && bill.paidAmount > 0) {
       // Payment-only transaction: no items, only payment
-      totalBillAmount = 0; // No bill amount for payment-only
+      totalBillAmount = billPreviousBalance; // Previous balance becomes total for payment calculation
       newBalance = billPreviousBalance - bill.paidAmount; // Direct balance reduction
     } else {
       // Normal transaction with items
@@ -516,7 +516,7 @@ ${bill.items.length === 0 ? 'No items - Payment Only Transaction' :
 --------------------------------
 Previous Balance: ₹${billPreviousBalance.toFixed(2)}
 Current Items: ₹${itemsTotal.toFixed(2)}
-Total Bill Amount: ₹${totalBillAmount.toFixed(2)}
+Total Bill Amount: ₹${bill.items.length === 0 && bill.paidAmount > 0 ? '0.00' : totalBillAmount.toFixed(2)}
 Payment Amount: ₹${bill.paidAmount.toFixed(2)}
 New Balance: ₹${newBalance.toFixed(2)}${paymentMethodText}
 ================================
