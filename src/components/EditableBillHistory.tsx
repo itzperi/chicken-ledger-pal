@@ -124,12 +124,6 @@ Payment: ${bill.paymentMethod === 'cash' ? 'Cash' :
 `;
 }).join('')}
 
-SUMMARY:
-========
-Total Amount: ₹${totalAmount.toFixed(2)}
-Total Paid: ₹${totalPaid.toFixed(2)}
-Total Balance: ₹${totalBalance.toFixed(2)}
-
 ==================================
 Thank you for your business!
     `.trim();
