@@ -411,7 +411,7 @@ const Index = () => {
       customerPhone: selectedCustomerPhone,
       date: selectedDate,
       items: validItems,
-      totalAmount: totalBillAmount, // Previous balance + current items
+      totalAmount: itemsTotal, // Individual transaction amount (items only)
       paidAmount: 0,
       balanceAmount: newBalance, // Amount to carry forward
       paymentMethod: 'cash' as const,
@@ -466,11 +466,12 @@ const Index = () => {
     const validItems = billItems.filter(item => item.item && item.weight && item.rate);
     
     // Running balance calculation
-    let totalBillAmount, newBalance, requiredAmount;
+    let totalBillAmount, newBalance, requiredAmount, transactionAmount;
     
     if (validItems.length === 0 && previousBalance > 0) {
       // This is a balance-only payment (no new items, just paying existing balance)
       totalBillAmount = previousBalance; // Total is just the previous balance
+      transactionAmount = 0; // No purchase amount for payment-only transactions
       newBalance = previousBalance - paidAmount; // Remaining balance after payment
       requiredAmount = previousBalance; // For validation, but partial payments are allowed
       
@@ -481,6 +482,7 @@ const Index = () => {
       }
     } else {
       // Regular bill with items: Total = Previous Balance + Current Items
+      transactionAmount = itemsTotal; // Individual transaction amount (items only)
       totalBillAmount = previousBalance + itemsTotal;
       newBalance = totalBillAmount - paidAmount; // New balance after payment
       requiredAmount = totalBillAmount; // For validation, but partial payments are allowed
@@ -511,7 +513,7 @@ const Index = () => {
       customerPhone: selectedCustomerPhone,
       date: selectedDate,
       items: validItems, // Use actual items only, no fake items for payment-only transactions
-      totalAmount: totalBillAmount,
+      totalAmount: transactionAmount,
       paidAmount,
       balanceAmount: newBalance,
       paymentMethod,
@@ -548,13 +550,15 @@ const Index = () => {
     const itemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
     
     // CRITICAL FIX: Handle payment-only transactions correctly
-    let totalBillAmount, newBalance;
+    let totalBillAmount, newBalance, transactionAmount;
     if (bill.items.length === 0 && bill.paidAmount > 0) {
       // Payment-only transaction: no items, only payment
       totalBillAmount = billPreviousBalance; // Previous balance becomes total for payment calculation
+      transactionAmount = 0; // No purchase amount for payment-only transactions
       newBalance = billPreviousBalance - bill.paidAmount; // Direct balance reduction
     } else {
       // Normal transaction with items
+      transactionAmount = itemsTotal; // Individual transaction amount (items only)
       totalBillAmount = billPreviousBalance + itemsTotal;
       newBalance = totalBillAmount - bill.paidAmount;
     }
