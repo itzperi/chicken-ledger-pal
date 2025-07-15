@@ -88,32 +88,22 @@ const EditableBillHistory: React.FC<EditableBillHistoryProps> = ({
   };
 
   const generateHistoryContent = (bills: Bill[]) => {
-    const totalAmount = bills.reduce((sum, bill) => sum + bill.totalAmount, 0);
-    const totalPaid = bills.reduce((sum, bill) => sum + bill.paidAmount, 0);
-    const totalBalance = bills.reduce((sum, bill) => sum + bill.balanceAmount, 0);
-
     return `
-SANTHOSH CHICKEN - CUSTOMER HISTORY
+BILLING SYSTEM - CUSTOMER HISTORY
 ==================================
 Customer: ${customerName}
 
 PURCHASE HISTORY:
 ================
 ${bills.map((bill, index) => {
-  // Calculate previous balance for this bill
-  const previousBills = bills.filter(b => b.id < bill.id);
-  const previousBalance = previousBills.reduce((sum, b) => sum + b.balanceAmount, 0);
   const currentItemsTotal = bill.items.reduce((sum, item) => sum + item.amount, 0);
-  const totalBillAmount = previousBalance + currentItemsTotal;
   
   return `
 Bill No: ${bill.billNumber || 'N/A'} - Date: ${formatDate(bill.date)}
 ${bill.items.map(item => 
   `• ${item.item} - ${item.weight}kg @ ₹${item.rate}/kg = ₹${item.amount.toFixed(2)}`
 ).join('\n')}
-Previous Balance: ₹${previousBalance.toFixed(2)}
 Current Items: ₹${currentItemsTotal.toFixed(2)}
-Total: ₹${totalBillAmount.toFixed(2)}
 Paid: ₹${bill.paidAmount.toFixed(2)}
 Balance: ₹${bill.balanceAmount.toFixed(2)}
 Payment: ${bill.paymentMethod === 'cash' ? 'Cash' : 
@@ -124,7 +114,6 @@ Payment: ${bill.paymentMethod === 'cash' ? 'Cash' :
 `;
 }).join('')}
 
-==================================
 Thank you for your business!
     `.trim();
   };
@@ -211,7 +200,7 @@ Thank you for your business!
               <th className="border border-gray-300 p-3 text-left">Date</th>
               <th className="border border-gray-300 p-3 text-left">Bill No</th>
               <th className="border border-gray-300 p-3 text-left">Items</th>
-              <th className="border border-gray-300 p-3 text-left">Total</th>
+              <th className="border border-gray-300 p-3 text-left">Total Purchase</th>
               <th className="border border-gray-300 p-3 text-left">Paid</th>
               <th className="border border-gray-300 p-3 text-left">Balance</th>
               <th className="border border-gray-300 p-3 text-left">Payment Method</th>
@@ -284,7 +273,7 @@ Thank you for your business!
                 <td className="border border-gray-300 p-3">
                   ₹{(editingBill === bill.id && editedBill ? 
                     editedBill.items.reduce((sum, item) => sum + item.amount, 0) : 
-                    bill.totalAmount
+                    bill.items.reduce((sum, item) => sum + item.amount, 0)
                   ).toFixed(2)}
                 </td>
                 <td className="border border-gray-300 p-3">
