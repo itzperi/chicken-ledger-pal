@@ -290,10 +290,21 @@ Thank you for your business!
                   )}
                 </td>
                 <td className="border border-gray-300 p-3 text-red-600 text-2xl font-bold">
-                  ₹{(editingBill === bill.id && editedBill ? 
-                    editedBill.items.reduce((sum, item) => sum + item.amount, 0) - editedBill.paidAmount : 
-                    bill.balanceAmount
-                  ).toFixed(2)}
+                  ₹{(() => {
+                    if (editingBill === bill.id && editedBill) {
+                      // For editing mode, calculate running total up to this bill
+                      const billIndex = customerHistory.findIndex(b => b.id === bill.id);
+                      const billsUpToHere = customerHistory.slice(0, billIndex);
+                      const previousBalance = billsUpToHere.reduce((sum, b) => sum + b.balanceAmount, 0);
+                      const currentBillBalance = editedBill.items.reduce((sum, item) => sum + item.amount, 0) - editedBill.paidAmount;
+                      return (previousBalance + currentBillBalance).toFixed(2);
+                    } else {
+                      // Calculate running total of unpaid amounts up to this bill
+                      const billIndex = customerHistory.findIndex(b => b.id === bill.id);
+                      const billsUpToHere = customerHistory.slice(0, billIndex + 1);
+                      return billsUpToHere.reduce((sum, b) => sum + b.balanceAmount, 0).toFixed(2);
+                    }
+                  })()}
                 </td>
                 <td className="border border-gray-300 p-3">
                   {editingBill === bill.id ? (
