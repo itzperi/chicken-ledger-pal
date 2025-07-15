@@ -273,7 +273,11 @@ Thank you for your business!
                 <td className="border border-gray-300 p-3">
                   ₹{(editingBill === bill.id && editedBill ? 
                     editedBill.items.reduce((sum, item) => sum + item.amount, 0) : 
-                    bill.items.reduce((sum, item) => sum + item.amount, 0)
+                    bill.items.reduce((sum, item) => {
+                      const weight = parseFloat(item.weight) || 0;
+                      const rate = parseFloat(item.rate) || 0;
+                      return sum + (weight * rate);
+                    }, 0)
                   ).toFixed(2)}
                 </td>
                 <td className="border border-gray-300 p-3">
