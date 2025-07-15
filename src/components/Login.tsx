@@ -31,7 +31,18 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     'Arasu': { password: '1234@', userType: 'owner' as const, businessId: 'santhosh1' as const },
     'Tamilnadu': { password: '1234@', userType: 'owner' as const, businessId: 'santhosh1' as const },
     'Bismi': { password: '1234@', userType: 'owner' as const, businessId: 'santhosh1' as const },
-    'Staff': { password: '1234@', userType: 'staff' as const, businessId: 'santhosh1' as const }
+    'Staff': { password: '1234@', userType: 'staff' as const, businessId: 'santhosh1' as const },
+    // Demo credentials for testing
+    'demo1': { password: '1234@', userType: 'owner' as const, businessId: 'santhosh1' as const },
+    'demo2': { password: '1234@', userType: 'owner' as const, businessId: 'santhosh1' as const },
+    'demo3': { password: '1234@', userType: 'owner' as const, businessId: 'santhosh1' as const },
+    'demo4': { password: '1234@', userType: 'owner' as const, businessId: 'santhosh1' as const },
+    'demo5': { password: '1234@', userType: 'owner' as const, businessId: 'santhosh1' as const },
+    'demo6': { password: '1234@', userType: 'staff' as const, businessId: 'santhosh2' as const },
+    'demo7': { password: '1234@', userType: 'staff' as const, businessId: 'santhosh2' as const },
+    'demo8': { password: '1234@', userType: 'staff' as const, businessId: 'santhosh2' as const },
+    'demo9': { password: '1234@', userType: 'staff' as const, businessId: 'santhosh2' as const },
+    'demo10': { password: '1234@', userType: 'staff' as const, businessId: 'santhosh2' as const }
   });
 
   const handleLogin = () => {
