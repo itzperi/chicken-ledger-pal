@@ -27,7 +27,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     'mathan': { password: '050467', userType: 'owner' as const, businessId: 'santhosh1' as const },
     'Shop1': { password: 'abc@', userType: 'staff' as const, businessId: 'santhosh1' as const },
     'Santhosh': { password: '050467', userType: 'owner' as const, businessId: 'santhosh2' as const },
-    'abc': { password: 'abc@', userType: 'staff' as const, businessId: 'santhosh2' as const }
+    'abc': { password: 'abc@', userType: 'staff' as const, businessId: 'santhosh2' as const },
+    'Arasu': { password: '1234@', userType: 'owner' as const, businessId: 'santhosh1' as const },
+    'Tamilnadu': { password: '1234@', userType: 'owner' as const, businessId: 'santhosh1' as const },
+    'Bismi': { password: '1234@', userType: 'owner' as const, businessId: 'santhosh1' as const },
+    'Staff': { password: '1234@', userType: 'staff' as const, businessId: 'santhosh1' as const }
   });
 
   const handleLogin = () => {
@@ -305,9 +309,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             <User className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-blue-600 mb-2">
-            Santhosh Chicken
+            Billing Software
           </h1>
-          <p className="text-gray-600 text-sm sm:text-base">Billing System Login</p>
+          <p className="text-gray-600 text-sm sm:text-base">System Login</p>
         </div>
         
         <div className="space-y-4 sm:space-y-6">
