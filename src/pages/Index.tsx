@@ -37,7 +37,7 @@ interface Bill {
 }
 
 type UserType = 'owner' | 'staff';
-type BusinessId = 'santhosh1' | 'santhosh2';
+type BusinessId = 'santhosh1' | 'santhosh2' | 'demo1_business' | 'demo2_business' | 'demo3_business' | 'demo4_business' | 'demo5_business' | 'demo6_business' | 'demo7_business' | 'demo8_business' | 'demo9_business' | 'demo10_business';
 
 const Index = () => {
   // Authentication state
