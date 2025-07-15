@@ -200,7 +200,7 @@ Thank you for your business!
               <th className="border border-gray-300 p-3 text-left">Date</th>
               <th className="border border-gray-300 p-3 text-left">Bill No</th>
               <th className="border border-gray-300 p-3 text-left">Items</th>
-              <th className="border border-gray-300 p-3 text-left">Total Purchase</th>
+              <th className="border border-gray-300 p-3 text-left">Purchase</th>
               <th className="border border-gray-300 p-3 text-left">Paid</th>
               <th className="border border-gray-300 p-3 text-left">Balance</th>
               <th className="border border-gray-300 p-3 text-left">Payment Method</th>
