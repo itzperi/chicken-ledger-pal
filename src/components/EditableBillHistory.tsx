@@ -103,7 +103,7 @@ Bill No: ${bill.billNumber || 'N/A'} - Date: ${formatDate(bill.date)}
 ${bill.items.map(item => 
   `• ${item.item} - ${item.weight}kg @ ₹${item.rate}/kg = ₹${item.amount.toFixed(2)}`
 ).join('\n')}
-Current Items: ₹${currentItemsTotal.toFixed(2)}
+Total: ₹${currentItemsTotal.toFixed(2)}
 Paid: ₹${bill.paidAmount.toFixed(2)}
 Balance: ₹${bill.balanceAmount.toFixed(2)}
 Payment: ${bill.paymentMethod === 'cash' ? 'Cash' : 
