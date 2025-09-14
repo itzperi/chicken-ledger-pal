@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { User, Lock, Eye, EyeOff, Key, ArrowLeft } from 'lucide-react';
 
 interface LoginProps {
-  onLogin: (userType: 'owner' | 'staff', businessId: 'santhosh1' | 'santhosh2' | 'demo1_business' | 'demo2_business' | 'demo3_business' | 'demo4_business' | 'demo5_business' | 'demo6_business' | 'demo7_business' | 'demo8_business' | 'demo9_business' | 'demo10_business') => void;
+  onLogin: (userType: 'owner' | 'staff', businessId: 'santhosh1' | 'santhosh2' | 'vasan' | 'demo1_business' | 'demo2_business' | 'demo3_business' | 'demo4_business' | 'demo5_business' | 'demo6_business' | 'demo7_business' | 'demo8_business' | 'demo9_business' | 'demo10_business') => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
@@ -32,6 +32,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     'Tamilnadu': { password: '1234@', userType: 'owner' as const, businessId: 'santhosh1' as const },
     'Bismi': { password: '1234@', userType: 'owner' as const, businessId: 'santhosh1' as const },
     'Staff': { password: '1234@', userType: 'staff' as const, businessId: 'santhosh1' as const },
+    'Vasan': { password: '1234@', userType: 'owner' as const, businessId: 'vasan' as const },
     // Demo credentials for testing - each with unique business environment
     'demo1': { password: '1234@', userType: 'owner' as const, businessId: 'demo1_business' as const },
     'demo2': { password: '1234@', userType: 'owner' as const, businessId: 'demo2_business' as const },

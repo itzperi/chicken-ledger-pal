@@ -55,6 +55,7 @@ export type Database = {
           balance: number | null
           business_id: string
           created_at: string | null
+          gst_number: string | null
           id: number
           name: string
           phone: string
@@ -63,6 +64,7 @@ export type Database = {
           balance?: number | null
           business_id: string
           created_at?: string | null
+          gst_number?: string | null
           id?: number
           name: string
           phone: string
@@ -71,6 +73,7 @@ export type Database = {
           balance?: number | null
           business_id?: string
           created_at?: string | null
+          gst_number?: string | null
           id?: number
           name?: string
           phone?: string
