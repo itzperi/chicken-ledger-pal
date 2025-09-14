@@ -453,148 +453,166 @@ const Index = () => {
     }
   };
 
-  // Handle bill confirmation without payment (Case 1) - UPDATED with running balance logic
+  // Enhanced bill confirmation without payment with comprehensive error handling
   const handleConfirmBillWithoutPayment = async () => {
-    // Calculate current items total
-    const itemsTotal = billItems.filter(item => item.item && item.weight && item.rate).reduce((sum, item) => sum + item.amount, 0);
-    const validItems = billItems.filter(item => item.item && item.weight && item.rate);
-    
-    // Running balance calculation: Total = Previous Balance + Current Items
-    const totalBillAmount = previousBalance + itemsTotal;
-    const newBalance = totalBillAmount - 0; // No payment, so new balance = total bill amount
+    try {
+      // Calculate current items total
+      const itemsTotal = billItems.filter(item => item.item && item.weight && item.rate).reduce((sum, item) => sum + item.amount, 0);
+      const validItems = billItems.filter(item => item.item && item.weight && item.rate);
+      
+      // Running balance calculation: Total = Previous Balance + Current Items
+      const totalBillAmount = previousBalance + itemsTotal;
+      const newBalance = totalBillAmount - 0; // No payment, so new balance = total bill amount
 
-    // Create bill record with running balance logic
-    const billRecord = {
-      customer: selectedCustomer,
-      customerPhone: selectedCustomerPhone,
-      date: selectedDate,
-      items: validItems,
-      totalAmount: itemsTotal, // Individual transaction amount (items only)
-      paidAmount: 0,
-      balanceAmount: newBalance, // Amount to carry forward
-      paymentMethod: 'cash' as const,
-    };
+      // Create bill record with running balance logic
+      const billRecord = {
+        customer: selectedCustomer,
+        customerPhone: selectedCustomerPhone,
+        date: selectedDate,
+        items: validItems,
+        totalAmount: itemsTotal, // Individual transaction amount (items only)
+        paidAmount: 0,
+        balanceAmount: newBalance, // Amount to carry forward
+        paymentMethod: 'cash' as const,
+      };
 
-    // Add to billing history
-    const savedBill = await addBill(billRecord);
-    
-    // Set confirmed bill and show actions
-    if (savedBill) {
+      console.log('Attempting to save bill without payment:', billRecord);
+
+      // Add to billing history with error handling
+      const savedBill = await addBill(billRecord);
+      
+      if (!savedBill) {
+        throw new Error('Failed to save bill to database');
+      }
+      
+      // Set confirmed bill and show actions
       setConfirmedBill(savedBill);
       setIsBalanceOnlyBill(true);
       setShowBillActions(true);
       
       // Critical: Refresh customers data to sync balance across all views
       await refreshCustomersData();
+      
+      console.log('Bill confirmation without payment completed successfully');
+      
+    } catch (error) {
+      console.error('Error during bill confirmation without payment:', error);
+      
+      // Provide user-friendly error feedback
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      alert(`Failed to confirm bill: ${errorMessage}\n\nPlease try again or contact support if the problem persists.`);
     }
   };
 
-  // Handle bill confirmation with payment (Case 2) - ENHANCED with comprehensive validation
+  // Enhanced bill confirmation with comprehensive error handling
   const handleConfirmBill = async () => {
-    let paidAmount = 0;
-    
-    // Calculate paid amount based on payment method with validation
-    if (paymentMethod === 'cash_gpay') {
-      const cash = parseFloat(cashAmount) || 0;
-      const gpay = parseFloat(gpayAmount) || 0;
+    try {
+      let paidAmount = 0;
       
-      // Validate individual amounts
-      if (cash < 0 || gpay < 0) {
-        alert('Cash and GPay amounts cannot be negative. Please enter valid amounts.');
-        return;
+      // Calculate paid amount based on payment method with validation
+      if (paymentMethod === 'cash_gpay') {
+        const cash = parseFloat(cashAmount) || 0;
+        const gpay = parseFloat(gpayAmount) || 0;
+        
+        // Validate individual amounts
+        if (cash < 0 || gpay < 0) {
+          alert('Cash and GPay amounts cannot be negative. Please enter valid amounts.');
+          return;
+        }
+        
+        if (cash === 0 && gpay === 0) {
+          alert('Please enter at least one payment amount (Cash or GPay).');
+          return;
+        }
+        
+        paidAmount = cash + gpay;
+      } else {
+        paidAmount = parseFloat(paymentAmount) || 0;
+        
+        if (paidAmount <= 0) {
+          alert('Payment amount must be greater than zero.');
+          return;
+        }
       }
       
-      if (cash === 0 && gpay === 0) {
-        alert('Please enter at least one payment amount (Cash or GPay).');
-        return;
-      }
+      // Calculate current items total
+      const itemsTotal = billItems.filter(item => item.item && item.weight && item.rate).reduce((sum, item) => sum + item.amount, 0);
+      const validItems = billItems.filter(item => item.item && item.weight && item.rate);
       
-      paidAmount = cash + gpay;
-    } else {
-      paidAmount = parseFloat(paymentAmount) || 0;
+      // Running balance calculation
+      let totalBillAmount, newBalance, requiredAmount, transactionAmount;
       
-      if (paidAmount <= 0) {
-        alert('Payment amount must be greater than zero.');
-        return;
+      if (validItems.length === 0 && previousBalance > 0) {
+        // This is a balance-only payment (no new items, just paying existing balance)
+        totalBillAmount = previousBalance; // Total is just the previous balance
+        transactionAmount = 0; // No purchase amount for payment-only transactions
+        newBalance = previousBalance - paidAmount; // Remaining balance after payment
+        requiredAmount = previousBalance; // For validation, but partial payments are allowed
+        
+        // Allow overpayment for advance credit on balance-only payments
+        if (paidAmount > previousBalance) {
+          const advanceAmount = paidAmount - previousBalance;
+          console.log(`Advance payment: ₹${advanceAmount.toFixed(2)} will be credited to customer`);
+        }
+      } else {
+        // Regular bill with items: Total = Previous Balance + Current Items
+        transactionAmount = itemsTotal; // Individual transaction amount (items only)
+        totalBillAmount = previousBalance + itemsTotal;
+        newBalance = totalBillAmount - paidAmount; // New balance after payment
+        requiredAmount = totalBillAmount; // For validation, but partial payments are allowed
+        
+        // Allow overpayment for advance credit on regular bills
+        if (paidAmount > totalBillAmount) {
+          const advanceAmount = paidAmount - totalBillAmount;
+          console.log(`Advance payment: ₹${advanceAmount.toFixed(2)} will be credited to customer`);
+        }
       }
-    }
-    
-    // Calculate current items total
-    const itemsTotal = billItems.filter(item => item.item && item.weight && item.rate).reduce((sum, item) => sum + item.amount, 0);
-    const validItems = billItems.filter(item => item.item && item.weight && item.rate);
-    
-    // Running balance calculation
-    let totalBillAmount, newBalance, requiredAmount, transactionAmount;
-    
-    if (validItems.length === 0 && previousBalance > 0) {
-      // This is a balance-only payment (no new items, just paying existing balance)
-      totalBillAmount = previousBalance; // Total is just the previous balance
-      transactionAmount = 0; // No purchase amount for payment-only transactions
-      newBalance = previousBalance - paidAmount; // Remaining balance after payment
-      requiredAmount = previousBalance; // For validation, but partial payments are allowed
-      
-      // Allow overpayment for advance credit on balance-only payments
-      if (paidAmount > previousBalance) {
-        const advanceAmount = paidAmount - previousBalance;
-        console.log(`Advance payment: ₹${advanceAmount.toFixed(2)} will be credited to customer`);
-      }
-    } else {
-      // Regular bill with items: Total = Previous Balance + Current Items
-      transactionAmount = itemsTotal; // Individual transaction amount (items only)
-      totalBillAmount = previousBalance + itemsTotal;
-      newBalance = totalBillAmount - paidAmount; // New balance after payment
-      requiredAmount = totalBillAmount; // For validation, but partial payments are allowed
-      
-      // Allow overpayment for advance credit on regular bills
-      if (paidAmount > totalBillAmount) {
-        const advanceAmount = paidAmount - totalBillAmount;
-        console.log(`Advance payment: ₹${advanceAmount.toFixed(2)} will be credited to customer`);
-      }
-    }
 
-    // Additional validation for mixed payment methods
-    if (paymentMethod === 'cash_gpay') {
-      const cash = parseFloat(cashAmount) || 0;
-      const gpay = parseFloat(gpayAmount) || 0;
+      // Create bill record with running balance logic
+      const billRecord = {
+        customer: selectedCustomer,
+        customerPhone: selectedCustomerPhone,
+        date: selectedDate,
+        items: validItems,
+        totalAmount: transactionAmount,
+        paidAmount,
+        balanceAmount: newBalance,
+        paymentMethod,
+        upiType: paymentMethod === 'upi' ? upiType : undefined,
+        bankName: paymentMethod === 'check' ? bankName : undefined,
+        checkNumber: paymentMethod === 'check' ? checkNumber : undefined,
+        cashAmount: paymentMethod === 'cash_gpay' ? parseFloat(cashAmount) || 0 : undefined,
+        gpayAmount: paymentMethod === 'cash_gpay' ? parseFloat(gpayAmount) || 0 : undefined,
+      };
+
+      console.log('Attempting to save bill:', billRecord);
+
+      // Add to billing history with error handling
+      const savedBill = await addBill(billRecord);
       
-      console.log(`[PAYMENT VALIDATION] Mixed payment validation:
-        Cash Amount: ₹${cash.toFixed(2)}
-        GPay Amount: ₹${gpay.toFixed(2)}
-        Total Paid: ₹${paidAmount.toFixed(2)}
-        Required Amount: ₹${requiredAmount.toFixed(2)}
-        Validation: ${paidAmount <= requiredAmount ? 'PASSED' : 'FAILED'}`);
-    }
-
-    // Create bill record with running balance logic
-    const billRecord = {
-      customer: selectedCustomer,
-      customerPhone: selectedCustomerPhone,
-      date: selectedDate,
-      items: validItems, // Use actual items only, no fake items for payment-only transactions
-      totalAmount: transactionAmount,
-      paidAmount,
-      balanceAmount: newBalance,
-      paymentMethod,
-      upiType: paymentMethod === 'upi' ? upiType : undefined,
-      bankName: paymentMethod === 'check' ? bankName : undefined,
-      checkNumber: paymentMethod === 'check' ? checkNumber : undefined,
-      cashAmount: paymentMethod === 'cash_gpay' ? parseFloat(cashAmount) || 0 : undefined,
-      gpayAmount: paymentMethod === 'cash_gpay' ? parseFloat(gpayAmount) || 0 : undefined,
-    };
-
-    // Add to billing history
-    const savedBill = await addBill(billRecord);
-    
-    // Set confirmed bill and show actions
-    if (savedBill) {
+      if (!savedBill) {
+        throw new Error('Failed to save bill to database');
+      }
+      
+      // Set confirmed bill and show actions
       setConfirmedBill(savedBill);
       setIsBalanceOnlyBill(validItems.length === 0);
       setShowBillActions(true);
       
       // Critical: Refresh customers data to sync balance across all views
       await refreshCustomersData();
+      
+      console.log('Bill confirmation completed successfully');
+      
+    } catch (error) {
+      console.error('Error during bill confirmation:', error);
+      
+      // Provide user-friendly error feedback
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      alert(`Failed to confirm bill: ${errorMessage}\n\nPlease try again or contact support if the problem persists.`);
+    } finally {
+      setShowConfirmDialog(false);
     }
-    setShowConfirmDialog(false);
   };
 
   // Generate bill content using running balance system - ENHANCED for Vasan business
@@ -2032,21 +2050,50 @@ Generated by Billing System`;
               </div>
             )}
 
-            {/* Updated Bill Actions - Show after bill is confirmed for both cases with 3 action buttons */}
+            {/* Enhanced Bill Actions - Comprehensive Post-Confirmation Interface */}
             {showBillActions && confirmedBill && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                <h3 className="text-lg font-semibold text-green-800 mb-3">
-                  Bill Created Successfully!
-                </h3>
-                <p className="text-sm text-green-700 mb-4">
-                  Bill has been saved. Choose an action below:
-                </p>
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-6 mb-4 shadow-lg">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-full">
+                    <Check className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-green-800">
+                      Bill Created Successfully!
+                    </h3>
+                    <p className="text-sm text-green-700">
+                      Bill #{confirmedBill.billNumber || confirmedBill.id} has been saved securely
+                    </p>
+                  </div>
+                </div>
                 
-                {/* 3 Action Buttons - Clean, professional layout */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                {/* Bill Summary */}
+                <div className="bg-white rounded-lg p-4 mb-4 border border-green-100">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600">Customer:</span>
+                      <p className="font-semibold">{confirmedBill.customer}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Amount:</span>
+                      <p className="font-semibold">₹{confirmedBill.totalAmount.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Paid:</span>
+                      <p className="font-semibold text-green-600">₹{confirmedBill.paidAmount.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Balance:</span>
+                      <p className="font-semibold text-blue-600">₹{confirmedBill.balanceAmount.toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Action Buttons - Clean, professional layout */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                   <button
                     onClick={() => saveAsDocument(confirmedBill)}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors duration-200 shadow-sm"
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105"
                     title="Download bill as PDF"
                   >
                     <FileText className="h-5 w-5" />
@@ -2054,7 +2101,7 @@ Generated by Billing System`;
                   </button>
                   <button
                     onClick={() => sendToWhatsApp(confirmedBill)}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 shadow-sm"
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105"
                     title="Send bill to customer via WhatsApp"
                   >
                     <MessageCircle className="h-5 w-5" />
@@ -2062,7 +2109,7 @@ Generated by Billing System`;
                   </button>
                   <button
                     onClick={() => printBill(confirmedBill)}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors duration-200 shadow-sm"
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105"
                     title="Print bill"
                   >
                     <Printer className="h-5 w-5" />
@@ -2070,13 +2117,13 @@ Generated by Billing System`;
                   </button>
                 </div>
                 
-                
                 <div className="text-center">
                   <button
                     onClick={handleNextCustomer}
-                    className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium text-lg transition-colors duration-200 shadow-sm"
+                    className="px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 font-medium text-lg transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105"
                     title="Start a new bill for the next customer"
                   >
+                    <Users className="inline mr-2 h-5 w-5" />
                     Bill for Next Customer
                   </button>
                 </div>
