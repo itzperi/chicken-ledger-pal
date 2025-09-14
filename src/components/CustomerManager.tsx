@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
-import { Plus, Edit, Save, X, Trash2, FileText } from 'lucide-react';
+import { Plus, Edit, Save, X, Trash2, FileText, Upload } from 'lucide-react';
+import BulkCustomerImport from './BulkCustomerImport';
 
 interface Customer {
   name: string;
@@ -15,6 +16,7 @@ interface CustomerManagerProps {
   onDeleteCustomer?: (customerName: string) => Promise<void>;
   onDownloadCustomerData?: (customerName: string) => void;
   onDownloadAllCustomersData?: () => void;
+  businessId: string;
 }
 
 const CustomerManager: React.FC<CustomerManagerProps> = ({ 
@@ -23,13 +25,15 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
   onUpdateCustomer,
   onDeleteCustomer,
   onDownloadCustomerData,
-  onDownloadAllCustomersData
+  onDownloadAllCustomersData,
+  businessId
 }) => {
   const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', balance: 0 });
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingCustomer, setEditingCustomer] = useState({ name: '', phone: '', balance: 0 });
   const [deleteConfirmIndex, setDeleteConfirmIndex] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showBulkImport, setShowBulkImport] = useState(false);
 
   const handleAddCustomer = async () => {
     if (!newCustomer.name.trim()) {
@@ -149,8 +153,41 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
     setDeleteConfirmIndex(null);
   };
 
+  const handleBulkImport = async (customersToImport: Customer[]) => {
+    for (const customer of customersToImport) {
+      await onAddCustomer(customer);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Bulk Import Section */}
+      <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="text-lg font-semibold text-purple-800">Bulk Customer Import</h3>
+            <p className="text-sm text-purple-600">Import multiple customers from Santhosh Chicken report data</p>
+          </div>
+          <button
+            onClick={() => setShowBulkImport(!showBulkImport)}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
+          >
+            <Upload className="inline mr-2 h-4 w-4" />
+            {showBulkImport ? 'Hide Import' : 'Show Import'}
+          </button>
+        </div>
+        
+        {showBulkImport && (
+          <div className="mt-4">
+            <BulkCustomerImport
+              existingCustomers={customers}
+              onBulkImport={handleBulkImport}
+              businessId={businessId}
+            />
+          </div>
+        )}
+      </div>
+
       {/* Add New Customer */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h3 className="text-lg font-semibold mb-4">Add New Customer</h3>
