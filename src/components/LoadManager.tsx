@@ -64,7 +64,7 @@ const LoadManager: React.FC<LoadManagerProps> = ({ businessId }) => {
       if (inventoryError && inventoryError.code !== 'PGRST116') {
         console.error('Error loading inventory:', inventoryError);
       } else {
-        const stock = inventoryData?.chicken_stock_kg || 0;
+        const stock = (inventoryData as any)?.chicken_stock_kg || 0;
         setCurrentStock(stock);
         
         // Calculate weekly consumption (simple average of last 4 weeks)
@@ -86,9 +86,9 @@ const LoadManager: React.FC<LoadManagerProps> = ({ businessId }) => {
       
       const { data: bills, error } = await supabase
         .from('bills')
-        .select('items, bill_date')
+        .select('items, created_at')
         .eq('business_id', businessId)
-        .gte('bill_date', fourWeeksAgo.toISOString().split('T')[0]);
+        .gte('created_at', fourWeeksAgo.toISOString());
 
       if (error) {
         console.error('Error calculating consumption:', error);
@@ -98,7 +98,7 @@ const LoadManager: React.FC<LoadManagerProps> = ({ businessId }) => {
       let totalConsumption = 0;
       bills?.forEach(bill => {
         if (bill.items && Array.isArray(bill.items)) {
-          bill.items.forEach((item: any) => {
+          (bill.items as any[]).forEach((item: any) => {
             if (item.weight) {
               totalConsumption += parseFloat(item.weight);
             }

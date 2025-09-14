@@ -174,20 +174,20 @@ export const useSupabaseData = (businessId: string) => {
         
         setBills((billsData || []).map(b => ({
           id: b.id,
-          billNumber: b.bill_number || undefined,
+          billNumber: (b as any).bill_number || undefined,
           customer: b.customer_name,
           customerPhone: b.customer_phone,
-          date: b.bill_date,
+          date: (b as any).bill_date,
           items: (b.items as unknown as BillItem[]) || [],
           totalAmount: parseFloat(b.total_amount.toString()),
-          paidAmount: parseFloat(b.paid_amount.toString()),
-          balanceAmount: parseFloat(b.balance_amount.toString()),
+          paidAmount: parseFloat((b as any).paid_amount?.toString() || '0'),
+          balanceAmount: parseFloat((b as any).balance_amount?.toString() || '0'),
           paymentMethod: b.payment_method as 'cash' | 'upi' | 'check' | 'cash_gpay',
-          upiType: b.upi_type || undefined,
-          bankName: b.bank_name || undefined,
-          checkNumber: b.check_number || undefined,
-          cashAmount: b.cash_amount ? parseFloat(b.cash_amount.toString()) : undefined,
-          gpayAmount: b.gpay_amount ? parseFloat(b.gpay_amount.toString()) : undefined,
+          upiType: (b as any).upi_type || undefined,
+          bankName: (b as any).bank_name || undefined,
+          checkNumber: (b as any).check_number || undefined,
+          cashAmount: (b as any).cash_amount ? parseFloat((b as any).cash_amount.toString()) : undefined,
+          gpayAmount: (b as any).gpay_amount ? parseFloat((b as any).gpay_amount.toString()) : undefined,
           timestamp: new Date(b.created_at || '')
         })));
         
@@ -401,20 +401,20 @@ export const useSupabaseData = (businessId: string) => {
       
       const newBill: Bill = {
         id: data.id,
-        billNumber: data.bill_number,
+        billNumber: (data as any).bill_number,
         customer: data.customer_name,
         customerPhone: data.customer_phone,
-        date: data.bill_date,
+        date: (data as any).bill_date,
         items: (data.items as unknown as BillItem[]) || [],
         totalAmount: parseFloat(data.total_amount.toString()),
-        paidAmount: parseFloat(data.paid_amount.toString()),
-        balanceAmount: parseFloat(data.balance_amount.toString()),
+        paidAmount: parseFloat((data as any).paid_amount?.toString() || '0'),
+        balanceAmount: parseFloat((data as any).balance_amount?.toString() || '0'),
         paymentMethod: data.payment_method as 'cash' | 'upi' | 'check' | 'cash_gpay',
-        upiType: data.upi_type || undefined,
-        bankName: data.bank_name || undefined,
-        checkNumber: data.check_number || undefined,
-        cashAmount: data.cash_amount ? parseFloat(data.cash_amount.toString()) : undefined,
-        gpayAmount: data.gpay_amount ? parseFloat(data.gpay_amount.toString()) : undefined,
+        upiType: (data as any).upi_type || undefined,
+        bankName: (data as any).bank_name || undefined,
+        checkNumber: (data as any).check_number || undefined,
+        cashAmount: (data as any).cash_amount ? parseFloat((data as any).cash_amount.toString()) : undefined,
+        gpayAmount: (data as any).gpay_amount ? parseFloat((data as any).gpay_amount.toString()) : undefined,
         timestamp: new Date(data.created_at || '')
       };
       

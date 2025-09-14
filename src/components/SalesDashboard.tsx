@@ -36,7 +36,7 @@ const SalesDashboard: React.FC<SalesDashboardProps> = ({ bills, customers, busin
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;
-      setRemainingQuantity(data?.chicken_stock_kg || 0);
+      setRemainingQuantity((data as any)?.chicken_stock_kg || 0);
     } catch (error) {
       console.error('Error fetching remaining quantity:', error);
     }
