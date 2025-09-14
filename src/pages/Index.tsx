@@ -777,64 +777,168 @@ Use "Confirm Bill" to save this bill.
     }
   };
 
-  // Print to printer (for confirmed bills)
+  // Enhanced Print function with error handling and user feedback
   const printBill = async (bill: Bill) => {
-    const printContent = await generateBillContent(bill, previousBalance);
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Bill - ${bill.customer}</title>
-            <style>
-              body { 
-                font-family: 'Courier New', monospace; 
-                padding: 20px; 
-                line-height: 1.4;
-                background: white;
-              }
-              pre { 
-                white-space: pre-wrap; 
-                font-size: 12px;
-                margin: 0;
-              }
-              @media print {
-                body { margin: 0; padding: 10px; }
-                pre { font-size: 11px; }
-              }
-            </style>
-          </head>
-          <body>
-            <pre>${printContent}</pre>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.print();
+    try {
+      const printContent = await generateBillContent(bill, previousBalance);
+      const printWindow = window.open('', '_blank');
+      
+      if (printWindow) {
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>Bill - ${bill.customer}</title>
+              <style>
+                body { 
+                  font-family: 'Courier New', monospace; 
+                  padding: 20px; 
+                  line-height: 1.4;
+                  background: white;
+                  color: black;
+                }
+                pre { 
+                  white-space: pre-wrap; 
+                  font-size: 12px;
+                  margin: 0;
+                  font-family: 'Courier New', monospace;
+                }
+                @media print {
+                  body { 
+                    margin: 0; 
+                    padding: 10px; 
+                  }
+                  pre { 
+                    font-size: 11px; 
+                    line-height: 1.2;
+                  }
+                }
+                @page {
+                  margin: 0.5in;
+                }
+              </style>
+            </head>
+            <body>
+              <pre>${printContent}</pre>
+              <script>
+                window.onload = function() {
+                  setTimeout(function() {
+                    window.print();
+                  }, 500);
+                }
+              </script>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+        
+        // Show success message
+        setTimeout(() => {
+          alert('Print dialog opened successfully!');
+        }, 1000);
+        
+      } else {
+        alert('Unable to open print dialog. Please check your popup blocker settings.');
+      }
+      
+    } catch (error) {
+      console.error('Error printing bill:', error);
+      alert('Error preparing bill for printing. Please try again.');
     }
   };
 
-  // Save as document
+  // Save as PDF document with proper formatting
   const saveAsDocument = async (bill: Bill) => {
-    const billContent = await generateBillContent(bill, previousBalance);
-    const blob = new Blob([billContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Bill_${bill.customer}_${bill.date}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    try {
+      // Dynamic import for jsPDF to avoid build issues
+      const { jsPDF } = await import('jspdf');
+      
+      const billContent = await generateBillContent(bill, previousBalance);
+      
+      // Create new PDF document
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      // Set font and size for better readability
+      pdf.setFont('courier', 'normal');
+      pdf.setFontSize(10);
+      
+      // Split content into lines and add to PDF
+      const lines = billContent.split('\n');
+      let yPosition = 20;
+      const lineHeight = 4;
+      const pageHeight = pdf.internal.pageSize.height;
+      
+      lines.forEach((line, index) => {
+        // Check if we need a new page
+        if (yPosition > pageHeight - 20) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+        
+        pdf.text(line, 10, yPosition);
+        yPosition += lineHeight;
+      });
+      
+      // Save the PDF
+      const fileName = `Bill_${bill.customer.replace(/\s+/g, '_')}_${bill.date}_${bill.id}.pdf`;
+      pdf.save(fileName);
+      
+      // Show success message
+      alert('Bill PDF downloaded successfully!');
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      // Fallback to text file if PDF generation fails
+      const billContent = await generateBillContent(bill, previousBalance);
+      const blob = new Blob([billContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Bill_${bill.customer}_${bill.date}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      alert('PDF generation failed. Downloaded as text file instead.');
+    }
   };
 
-  // Send to WhatsApp
+  // Enhanced Send to WhatsApp with error handling and user feedback
   const sendToWhatsApp = async (bill: Bill) => {
-    const billContent = await generateBillContent(bill, previousBalance);
-    const encodedMessage = encodeURIComponent(billContent);
-    const phoneNumber = bill.customerPhone.replace(/\D/g, '');
-    const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
+    try {
+      const billContent = await generateBillContent(bill, previousBalance);
+      const encodedMessage = encodeURIComponent(billContent);
+      const phoneNumber = bill.customerPhone.replace(/\D/g, '');
+      
+      // Validate phone number
+      if (!phoneNumber || phoneNumber.length < 10) {
+        alert('Invalid phone number. Please check the customer phone number.');
+        return;
+      }
+      
+      // Create WhatsApp URL with proper formatting
+      const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodedMessage}`;
+      
+      // Open WhatsApp in new window
+      const whatsappWindow = window.open(whatsappUrl, '_blank');
+      
+      if (whatsappWindow) {
+        // Show success message after a delay
+        setTimeout(() => {
+          alert('WhatsApp opened successfully! You can now send the bill to the customer.');
+        }, 1000);
+      } else {
+        alert('Unable to open WhatsApp. Please check your popup blocker settings.');
+      }
+      
+    } catch (error) {
+      console.error('Error sending to WhatsApp:', error);
+      alert('Error preparing WhatsApp message. Please try again.');
+    }
   };
 
   // New function to handle "Bill for Next Customer"
@@ -1938,58 +2042,40 @@ Generated by Billing System`;
                   Bill has been saved. Choose an action below:
                 </p>
                 
-                {/* 3 Action Buttons */}
+                {/* 3 Action Buttons - Clean, professional layout */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                   <button
                     onClick={() => saveAsDocument(confirmedBill)}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors duration-200 shadow-sm"
+                    title="Download bill as PDF"
                   >
                     <FileText className="h-5 w-5" />
-                    📥 Download bill as PDF
+                    📥 Download PDF
                   </button>
                   <button
                     onClick={() => sendToWhatsApp(confirmedBill)}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors duration-200 shadow-sm"
+                    title="Send bill to customer via WhatsApp"
                   >
                     <MessageCircle className="h-5 w-5" />
-                    📲 Send to WhatsApp
+                    📲 Send WhatsApp
                   </button>
                   <button
                     onClick={() => printBill(confirmedBill)}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors duration-200 shadow-sm"
+                    title="Print bill"
                   >
                     <Printer className="h-5 w-5" />
-                    🖨️ Print bill
+                    🖨️ Print Bill
                   </button>
                 </div>
                 
-                <div className="flex flex-wrap gap-3 mb-4">
-                  <button
-                    onClick={async () => await printBill(confirmedBill)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                  >
-                    <Printer className="inline mr-2 h-4 w-4" />
-                    Print Bill
-                  </button>
-                  <button
-                    onClick={async () => await saveAsDocument(confirmedBill)}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
-                  >
-                    <FileText className="inline mr-2 h-4 w-4" />
-                    Save as Document
-                  </button>
-                  <button
-                    onClick={async () => await sendToWhatsApp(confirmedBill)}
-                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium"
-                  >
-                    <MessageCircle className="inline mr-2 h-4 w-4" />
-                    Send to WhatsApp
-                  </button>
-                </div>
+                
                 <div className="text-center">
                   <button
                     onClick={handleNextCustomer}
-                    className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium text-lg"
+                    className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium text-lg transition-colors duration-200 shadow-sm"
+                    title="Start a new bill for the next customer"
                   >
                     Bill for Next Customer
                   </button>
