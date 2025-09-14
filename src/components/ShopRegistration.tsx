@@ -64,8 +64,8 @@ const ShopRegistration: React.FC<ShopRegistrationProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999] p-2 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 w-full max-w-md mx-auto my-auto min-h-fit">
         <div className="text-center mb-6">
           <div className="mx-auto w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mb-4">
             <Building2 className="h-8 w-8 text-white" />
