@@ -6,6 +6,8 @@ import Products from '../components/Products';
 import SalesDashboard from '../components/SalesDashboard';
 import EditBillPage from '../components/EditBillPage';
 import LoadManager from '../components/LoadManager';
+import ShopRegistration from '../components/ShopRegistration';
+import WalkInBilling from '../components/WalkInBilling';
 import { useSupabaseData } from '../hooks/useSupabaseData';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -45,10 +47,17 @@ const Index = () => {
   const [userType, setUserType] = useState<UserType>('staff');
   const [businessId, setBusinessId] = useState<BusinessId>('santhosh1');
 
-  // GST number state for Vasan business
-  const [gstNumber, setGstNumber] = useState('');
-  const [showGstDialog, setShowGstDialog] = useState(false);
-  const [gstNumberSaved, setGstNumberSaved] = useState(false);
+  // Shop registration state
+  const [showShopRegistration, setShowShopRegistration] = useState(false);
+  const [shopDetails, setShopDetails] = useState<{
+    shopName: string;
+    address: string;
+    gstNumber: string;
+  } | null>(null);
+  const [shopDetailsLoaded, setShopDetailsLoaded] = useState(false);
+
+  // Walk-in customer state
+  const [isWalkInMode, setIsWalkInMode] = useState(false);
 
   // Supabase data hook
   const {
@@ -114,6 +123,44 @@ const Index = () => {
   
   // Customer suggestions state for real-time balance updates
   const [customerSuggestionsWithBalance, setCustomerSuggestionsWithBalance] = useState<Array<{name: string, phone: string, balance: number}>>([]);
+
+  // WhatsApp bill sharing function
+  const sendBillToWhatsApp = (phone: string, billData: any) => {
+    const validItems = billItems.filter(item => item.item && item.weight && item.rate);
+    const itemsTotal = validItems.reduce((sum, item) => sum + item.amount, 0);
+    const newBalance = previousBalance + itemsTotal;
+
+    const billContent = `
+🏪 ${shopDetails?.shopName || 'BILLING SYSTEM'}
+📍 ${shopDetails?.address || ''}
+${shopDetails?.gstNumber ? `🧾 GST: ${shopDetails.gstNumber}` : ''}
+
+📋 BILL DETAILS
+════════════════
+👤 Customer: ${selectedCustomer || 'Walk-in Customer'}
+📱 Phone: ${phone}
+📅 Date: ${new Date().toLocaleDateString('en-IN')}
+⏰ Time: ${new Date().toLocaleTimeString('en-IN', { hour12: true })}
+
+🛒 ITEMS:
+${validItems.map(item => 
+  `• ${item.item} - ${item.weight}kg @ ₹${item.rate}/kg = ₹${item.amount.toFixed(2)}`
+).join('\n')}
+
+💰 BILL SUMMARY:
+────────────────
+Previous Balance: ₹${previousBalance.toFixed(2)}
+Current Items: ₹${itemsTotal.toFixed(2)}
+Total Amount: ₹${newBalance.toFixed(2)}
+
+Thank you for your business! 🙏
+    `.trim();
+
+    const encodedMessage = encodeURIComponent(billContent);
+    const cleanPhone = phone.replace(/\D/g, '');
+    const whatsappUrl = `https://wa.me/91${cleanPhone}?text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
+  };
 
   // Refs
   const customerInputRef = useRef<HTMLInputElement>(null);
@@ -186,23 +233,39 @@ const Index = () => {
     setBusinessId(id);
     setIsLoggedIn(true);
 
-    // Check if GST number is saved for Vasan business
-    if (id === 'vasan') {
+    // Check if shop details are saved for new businesses (except mathan)
+    if (id !== 'santhosh1') { // mathan uses santhosh1 business id
       try {
-        const { data: customer } = await supabase
+        const { data: shopData } = await supabase
           .from('customers')
-          .select('gst_number')
-          .eq('business_id', 'vasan')
+          .select('gst_number, name, phone')
+          .eq('business_id', id)
+          .eq('name', '_SHOP_DETAILS_')
           .limit(1)
           .single();
         
-        if (customer?.gst_number) {
-          setGstNumber(customer.gst_number);
-          setGstNumberSaved(true);
+        if (shopData?.gst_number) {
+          setShopDetails({
+            shopName: shopData.name === '_SHOP_DETAILS_' ? shopData.phone : shopData.name,
+            address: shopData.phone === '_SHOP_DETAILS_' ? 'Not provided' : shopData.phone,
+            gstNumber: shopData.gst_number
+          });
+          setShopDetailsLoaded(true);
+        } else {
+          setShowShopRegistration(true);
         }
       } catch (error) {
-        console.log('No existing GST number found for Vasan business');
+        console.log('No existing shop details found, showing registration');
+        setShowShopRegistration(true);
       }
+    } else {
+      // For mathan's account, set default shop details
+      setShopDetails({
+        shopName: 'Santhosh Chicken Center',
+        address: '21 West Cemetery Road, Old Washermanpet, Chennai 21',
+        gstNumber: 'DEFAULT_GST_NUMBER'
+      });
+      setShopDetailsLoaded(true);
     }
   };
 
@@ -210,6 +273,10 @@ const Index = () => {
   const handleLogout = () => {
     setIsLoggedIn(false);
     setCurrentView('billing');
+    setShowShopRegistration(false);
+    setShopDetails(null);
+    setShopDetailsLoaded(false);
+    setIsWalkInMode(false);
     resetForm();
   };
 
@@ -370,44 +437,44 @@ const Index = () => {
     return { isValid: true, message: '' };
   };
 
-  // Save GST number for Vasan business
-  const saveGstNumber = async () => {
-    if (!gstNumber.trim()) {
-      alert('Please enter GST number');
-      return;
-    }
-
+  // Save shop details
+  const handleShopRegistrationComplete = async (details: { shopName: string; address: string; gstNumber: string }) => {
     try {
-      // Create a dummy customer record to store GST number
+      // Save shop details as a special customer record
       await supabase
         .from('customers')
         .upsert({
-          business_id: 'vasan',
-          name: '_GST_RECORD_',
-          phone: '',
+          business_id: businessId,
+          name: '_SHOP_DETAILS_',
+          phone: `${details.shopName}|${details.address}`,
           balance: 0,
-          gst_number: gstNumber.trim()
+          gst_number: details.gstNumber
         });
 
-      setGstNumberSaved(true);
-      setShowGstDialog(false);
-      alert('GST number saved successfully!');
+      setShopDetails(details);
+      setShopDetailsLoaded(true);
+      setShowShopRegistration(false);
+      alert('Shop details saved successfully!');
     } catch (error) {
-      console.error('Error saving GST number:', error);
-      alert('Error saving GST number. Please try again.');
+      console.error('Error saving shop details:', error);
+      alert('Error saving shop details. Please try again.');
     }
   };
 
-  // Updated function to show confirmation dialog with enhanced validation and GST check
+  const handleShopRegistrationCancel = () => {
+    setShowShopRegistration(false);
+    handleLogout(); // Logout if they cancel registration
+  };
+
+  // Updated function to show confirmation dialog with enhanced validation
   const handleShowConfirmDialog = () => {
-    if (!selectedCustomer) {
-      alert('Please select a customer');
+    if (!selectedCustomer && !isWalkInMode) {
+      alert('Please select a customer or enable walk-in mode');
       return;
     }
 
-    // For Vasan business, check if GST number is saved on first billing attempt
-    if (businessId === 'vasan' && !gstNumberSaved) {
-      setShowGstDialog(true);
+    if (isWalkInMode && !selectedCustomerPhone) {
+      alert('Please enter phone number for walk-in customer');
       return;
     }
 
@@ -667,22 +734,22 @@ const Index = () => {
 ===============
 61, Vadivelu Mudali St, Chinnaiyan Colony, 
 Perambur, Chennai, Tamil Nadu 600011
-${gstNumber ? `GST: ${gstNumber}` : ''}
+${shopDetails?.gstNumber ? `GST: ${shopDetails.gstNumber}` : ''}
 
 `;
     } else {
-      businessHeader = `BILLING SYSTEM
+      businessHeader = `${shopDetails?.shopName || 'BILLING SYSTEM'}
 ==============
-21 West Cemetery Road
-Old Washermanpet
-Chennai 21
+${shopDetails?.address || '21 West Cemetery Road, Old Washermanpet, Chennai 21'}
+${shopDetails?.gstNumber ? `GST: ${shopDetails.gstNumber}` : ''}
 Phone: 9840217992
 WhatsApp: 7200226930
 Email: mathangopal5467@yahoo.com
 
 `;
     }
-    
+
+    // Generate the bill content with items
     return `${businessHeader}Bill No: ${bill.billNumber || 'N/A'}
 Date: ${bill.date}
 Time: ${time}
@@ -1017,21 +1084,33 @@ Use "Confirm Bill" to save this bill.
     }
   };
 
-  // Get customer history
+  // Get customer history with improved date filtering
   const getCustomerHistory = () => {
-    if (!balanceCustomer) return;
+    if (!balanceCustomer) {
+      alert('Please select a customer first');
+      return;
+    }
     
     let filteredHistory = bills.filter(bill => bill.customer === balanceCustomer);
     
     if (startDate && endDate) {
-      filteredHistory = filteredHistory.filter(bill => 
-        bill.date >= startDate && bill.date <= endDate
-      );
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999); // Include the entire end date
+      
+      filteredHistory = filteredHistory.filter(bill => {
+        const billDate = new Date(bill.date);
+        return billDate >= start && billDate <= end;
+      });
     }
     
     // Sort bills in ascending order (oldest first)
     filteredHistory.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     setCustomerHistory(filteredHistory);
+    
+    if (filteredHistory.length === 0) {
+      alert('No bills found for the selected customer and date range.');
+    }
   };
 
   // Add balance to customer
@@ -1504,21 +1583,60 @@ Generated by Billing System`;
                 </div>
               </div>
 
-              {/* Customer Selection */}
-              <div className="lg:col-span-2 relative">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Customer Name
-                </label>
-                <div className="relative">
+              {/* Walk-in Customer Option */}
+              <div className="lg:col-span-3 mb-4">
+                <label className="flex items-center space-x-2">
                   <input
-                    ref={customerInputRef}
-                    type="text"
-                    value={customerInput}
+                    type="checkbox"
+                    checked={isWalkInMode}
                     onChange={(e) => {
-                      setCustomerInput(e.target.value);
-                      setShowCustomerSuggestions(true);
+                      setIsWalkInMode(e.target.checked);
+                      if (e.target.checked) {
+                        setSelectedCustomer('');
+                        setCustomerInput('');
+                        setPreviousBalance(0);
+                      }
                     }}
-                    onFocus={() => setShowCustomerSuggestions(true)}
+                    className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Walk-in Customer Mode</span>
+                </label>
+              </div>
+
+              {/* Walk-in Billing Component */}
+              {isWalkInMode && (
+                <div className="lg:col-span-3">
+                  <WalkInBilling
+                    onPhoneUpdate={handlePhoneChange}
+                    selectedCustomerPhone={selectedCustomerPhone}
+                    selectedCustomer={selectedCustomer}
+                    onCustomerUpdate={setSelectedCustomer}
+                    previousBalance={previousBalance}
+                    billItems={billItems}
+                    totalAmount={totalAmount}
+                    onSendWhatsApp={sendBillToWhatsApp}
+                    shopDetails={shopDetails || undefined}
+                  />
+                </div>
+              )}
+
+              {/* Customer Selection - Only show when not in walk-in mode */}
+              {!isWalkInMode && (
+                <>
+                  <div className="lg:col-span-2 relative">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Customer Name
+                    </label>
+                    <div className="relative">
+                      <input
+                        ref={customerInputRef}
+                        type="text"
+                        value={customerInput}
+                        onChange={(e) => {
+                          setCustomerInput(e.target.value);
+                          setShowCustomerSuggestions(true);
+                        }}
+                        onFocus={() => setShowCustomerSuggestions(true)}
                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Type customer name"
                   />
@@ -1569,11 +1687,11 @@ Generated by Billing System`;
                           </div>
                         </div>
                       ))
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
 
             {/* Selected Customer Display with Balance and History - UPDATED with running balance system */}
             {selectedCustomer && (
