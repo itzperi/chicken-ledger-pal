@@ -16,37 +16,64 @@ export type Database = {
     Tables: {
       bills: {
         Row: {
+          balance_amount: number | null
+          bank_name: string | null
+          bill_date: string | null
+          bill_number: string | null
           business_id: string
+          cash_amount: number | null
+          check_number: string | null
           created_at: string | null
           customer_name: string
           customer_phone: string | null
+          gpay_amount: number | null
           id: number
           items: Json
+          paid_amount: number | null
           payment_method: string
           timestamp: string | null
           total_amount: number
+          upi_type: string | null
         }
         Insert: {
+          balance_amount?: number | null
+          bank_name?: string | null
+          bill_date?: string | null
+          bill_number?: string | null
           business_id: string
+          cash_amount?: number | null
+          check_number?: string | null
           created_at?: string | null
           customer_name: string
           customer_phone?: string | null
+          gpay_amount?: number | null
           id?: number
           items: Json
+          paid_amount?: number | null
           payment_method: string
           timestamp?: string | null
           total_amount: number
+          upi_type?: string | null
         }
         Update: {
+          balance_amount?: number | null
+          bank_name?: string | null
+          bill_date?: string | null
+          bill_number?: string | null
           business_id?: string
+          cash_amount?: number | null
+          check_number?: string | null
           created_at?: string | null
           customer_name?: string
           customer_phone?: string | null
+          gpay_amount?: number | null
           id?: number
           items?: Json
+          paid_amount?: number | null
           payment_method?: string
           timestamp?: string | null
           total_amount?: number
+          upi_type?: string | null
         }
         Relationships: []
       }
@@ -83,19 +110,25 @@ export type Database = {
       inventory: {
         Row: {
           business_id: string
+          chicken_stock_kg: number | null
           id: number
+          last_updated: string | null
           remaining_quantity: number
           updated_at: string | null
         }
         Insert: {
           business_id: string
+          chicken_stock_kg?: number | null
           id?: number
+          last_updated?: string | null
           remaining_quantity?: number
           updated_at?: string | null
         }
         Update: {
           business_id?: string
+          chicken_stock_kg?: number | null
           id?: number
+          last_updated?: string | null
           remaining_quantity?: number
           updated_at?: string | null
         }
