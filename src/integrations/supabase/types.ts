@@ -14,7 +14,183 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bills: {
+        Row: {
+          amount_paid: number
+          bill_no: string
+          business_id: string
+          created_at: string | null
+          customer_name: string
+          customer_phone: string | null
+          id: number
+          items: Json
+          payment_method: string | null
+          timestamp: string | null
+          total_amount: number
+        }
+        Insert: {
+          amount_paid?: number
+          bill_no: string
+          business_id: string
+          created_at?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          id?: number
+          items?: Json
+          payment_method?: string | null
+          timestamp?: string | null
+          total_amount?: number
+        }
+        Update: {
+          amount_paid?: number
+          bill_no?: string
+          business_id?: string
+          created_at?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          id?: number
+          items?: Json
+          payment_method?: string | null
+          timestamp?: string | null
+          total_amount?: number
+        }
+        Relationships: []
+      }
+      customers: {
+        Row: {
+          balance: number | null
+          business_id: string
+          created_at: string | null
+          id: number
+          name: string
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          balance?: number | null
+          business_id: string
+          created_at?: string | null
+          id?: number
+          name: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          balance?: number | null
+          business_id?: string
+          created_at?: string | null
+          id?: number
+          name?: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      inventory: {
+        Row: {
+          business_id: string
+          id: number
+          remaining_quantity: number
+          updated_at: string | null
+        }
+        Insert: {
+          business_id: string
+          id?: number
+          remaining_quantity?: number
+          updated_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          id?: number
+          remaining_quantity?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      load_entries: {
+        Row: {
+          business_id: string
+          created_at: string | null
+          entry_date: string
+          id: number
+          no_of_boxes: number
+          no_of_boxes_after: number
+          quantity_after_box: number
+          quantity_with_box: number
+        }
+        Insert: {
+          business_id: string
+          created_at?: string | null
+          entry_date: string
+          id?: number
+          no_of_boxes?: number
+          no_of_boxes_after?: number
+          quantity_after_box?: number
+          quantity_with_box?: number
+        }
+        Update: {
+          business_id?: string
+          created_at?: string | null
+          entry_date?: string
+          id?: number
+          no_of_boxes?: number
+          no_of_boxes_after?: number
+          quantity_after_box?: number
+          quantity_with_box?: number
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          business_id: string
+          created_at: string | null
+          id: number
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string | null
+          id?: number
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string | null
+          id?: number
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      purchases: {
+        Row: {
+          amount: number
+          business_id: string
+          created_at: string | null
+          description: string | null
+          id: number
+          purchase_date: string | null
+        }
+        Insert: {
+          amount?: number
+          business_id: string
+          created_at?: string | null
+          description?: string | null
+          id?: number
+          purchase_date?: string | null
+        }
+        Update: {
+          amount?: number
+          business_id?: string
+          created_at?: string | null
+          description?: string | null
+          id?: number
+          purchase_date?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
