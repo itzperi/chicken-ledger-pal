@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit, Save, X, Printer, MessageCircle, Download } from 'lucide-react';
+import { Edit, Save, X, Printer, MessageCircle, Download, Smartphone, Share2 } from 'lucide-react';
 
 interface BillItem {
   no: number;
@@ -41,6 +41,7 @@ const EditableBillHistory: React.FC<EditableBillHistoryProps> = ({
 }) => {
   const [editingBill, setEditingBill] = useState<number | null>(null);
   const [editedBill, setEditedBill] = useState<Bill | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -160,6 +161,19 @@ Thank you for your business!
     const phoneNumber = customerHistory[0]?.customerPhone?.replace(/\D/g, '') || '';
     const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodedMessage}`;
     window.open(whatsappUrl, '_blank');
+    setShowShareModal(false);
+  };
+
+  const sendToSms = () => {
+    const content = generateHistoryContent(customerHistory);
+    const phoneNumber = customerHistory[0]?.customerPhone?.replace(/\D/g, '') || '';
+    const smsUrl = `sms:${phoneNumber}?body=${encodeURIComponent(content)}`;
+    
+    const link = document.createElement('a');
+    link.href = smsUrl;
+    link.click();
+    
+    setShowShareModal(false);
   };
 
   if (customerHistory.length === 0) return null;
@@ -177,11 +191,11 @@ Thank you for your business!
             Print
           </button>
           <button
-            onClick={sendToWhatsApp}
+            onClick={() => setShowShareModal(true)}
             className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
           >
-            <MessageCircle className="inline mr-1 h-4 w-4" />
-            WhatsApp
+            <Share2 className="inline mr-1 h-4 w-4" />
+            Share
           </button>
           <button
             onClick={downloadHistory}
@@ -359,6 +373,56 @@ Thank you for your business!
           </tbody>
         </table>
       </div>
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Share History</h3>
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="text-center mb-4">
+              <p className="text-sm text-gray-600">
+                Send history to {customerName} ({customerHistory[0]?.customerPhone})
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+              <button
+                onClick={sendToWhatsApp}
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <MessageCircle className="h-5 w-5" />
+                <span>WhatsApp</span>
+              </button>
+
+              <button
+                onClick={sendToSms}
+                className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                <Smartphone className="h-5 w-5" />
+                <span>SMS</span>
+              </button>
+            </div>
+            
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-xs text-gray-600 mb-2">History Preview:</p>
+              <div className="bg-white border border-gray-200 rounded p-3 max-h-32 overflow-y-auto">
+                <pre className="text-xs whitespace-pre-wrap font-mono text-gray-700">
+                  {generateHistoryContent(customerHistory).substring(0, 200)}...
+                </pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

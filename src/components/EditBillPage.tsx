@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Save, Trash2, MessageCircle } from 'lucide-react';
+import { Search, Save, Trash2, MessageCircle, Smartphone, Share2 } from 'lucide-react';
 
 interface BillItem {
   no: number;
@@ -58,6 +58,7 @@ const EditBillPage: React.FC<EditBillPageProps> = ({
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
   const [editItems, setEditItems] = useState<BillItem[]>([]);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Search for bill by bill number
   const handleSearchBill = () => {
@@ -205,38 +206,54 @@ const EditBillPage: React.FC<EditBillPageProps> = ({
     }
   };
 
-  // Send to WhatsApp
-  const sendToWhatsApp = (bill: Bill) => {
-    const billContent = `
-SANTHOSH CHICKEN - BILLING SYSTEM
-================================
-Bill No: ${bill.billNumber || 'N/A'}
-Date: ${bill.date}
-Customer: ${bill.customer}
-Phone: ${bill.customerPhone}
+  // Streamlined sharing functions
+  const handleWhatsAppShare = (bill: Bill) => {
+    const phoneNumber = bill.customerPhone.replace(/\D/g, '');
+    const billContent = formatBillContent(bill);
+    const encodedMessage = encodeURIComponent(billContent);
+    const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodedMessage}`;
+    
+    window.open(whatsappUrl, '_blank');
+    setShowShareModal(false);
+  };
 
-ITEMS:
-------
+  const handleSmsShare = (bill: Bill) => {
+    const phoneNumber = bill.customerPhone.replace(/\D/g, '');
+    const billContent = formatBillContent(bill);
+    const smsUrl = `sms:${phoneNumber}?body=${encodeURIComponent(billContent)}`;
+    
+    const link = document.createElement('a');
+    link.href = smsUrl;
+    link.click();
+    
+    setShowShareModal(false);
+  };
+
+  // Format bill content for sharing
+  const formatBillContent = (bill: Bill) => {
+    return `🏪 BILLING SYSTEM
+📋 BILL DETAILS
+════════════════
+🧾 Bill No: ${bill.billNumber || 'N/A'}
+📅 Date: ${bill.date}
+👤 Customer: ${bill.customer}
+📱 Phone: ${bill.customerPhone}
+
+🛒 ITEMS:
 ${bill.items.map((item, index) => 
   `${index + 1}. ${item.item} - ${item.weight}kg @ ₹${item.rate}/kg = ₹${item.amount.toFixed(2)}`
 ).join('\n')}
 
---------------------------------
-Total Bill Amount: ₹${bill.totalAmount.toFixed(2)}
+💰 BILL SUMMARY:
+────────────────
+Total Amount: ₹${bill.totalAmount.toFixed(2)}
 Paid Amount: ₹${bill.paidAmount.toFixed(2)}
 Balance Amount: ₹${bill.balanceAmount.toFixed(2)}
-Payment Method: ${bill.paymentMethod.toUpperCase()}
+Payment Method: ${bill.paymentMethod?.toUpperCase() || 'CASH'}
 ${bill.paymentMethod === 'upi' ? `UPI Type: ${bill.upiType}` : ''}
 ${bill.paymentMethod === 'check' ? `Bank: ${bill.bankName}, Check No: ${bill.checkNumber}` : ''}
-================================
 
-Thank you for your business!
-    `.trim();
-
-    const encodedMessage = encodeURIComponent(billContent);
-    const phoneNumber = bill.customerPhone.replace(/\D/g, '');
-    const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
+Thank you for your business! 🙏`;
   };
 
   return (
@@ -272,15 +289,15 @@ Thank you for your business!
             </h3>
             <div className="flex gap-2">
               <button
-                onClick={() => sendToWhatsApp(editingBill)}
-                className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                onClick={() => setShowShareModal(true)}
+                className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm flex items-center gap-1"
               >
-                <MessageCircle className="inline h-4 w-4 mr-1" />
-                WhatsApp
+                <Share2 className="h-4 w-4" />
+                Share Bill
               </button>
               <button
                 onClick={handleSaveBill}
-                className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
               >
                 <Save className="inline h-4 w-4 mr-1" />
                 Save Changes
@@ -513,6 +530,56 @@ Thank you for your business!
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && editingBill && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Share Bill</h3>
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="text-center mb-4">
+              <p className="text-sm text-gray-600">
+                Send bill to {editingBill.customer} ({editingBill.customerPhone})
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+              <button
+                onClick={() => handleWhatsAppShare(editingBill)}
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <MessageCircle className="h-5 w-5" />
+                <span>WhatsApp</span>
+              </button>
+
+              <button
+                onClick={() => handleSmsShare(editingBill)}
+                className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                <Smartphone className="h-5 w-5" />
+                <span>SMS</span>
+              </button>
+            </div>
+            
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-xs text-gray-600 mb-2">Bill Preview:</p>
+              <div className="bg-white border border-gray-200 rounded p-3 max-h-32 overflow-y-auto">
+                <pre className="text-xs whitespace-pre-wrap font-mono text-gray-700">
+                  {formatBillContent(editingBill).substring(0, 200)}...
+                </pre>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

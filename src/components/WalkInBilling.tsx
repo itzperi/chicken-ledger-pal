@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, User, Check, X, MessageCircle } from 'lucide-react';
+import { Phone, User, Check, X, MessageCircle, Smartphone } from 'lucide-react';
 
 interface BillItem {
   no: number;
@@ -109,6 +109,23 @@ Thank you for your business! 🙏
     setShowWhatsAppPreview(false);
   };
 
+  const handleSmsShare = () => {
+    if (!isValidPhone) {
+      alert('Please enter a valid 10-digit phone number');
+      return;
+    }
+
+    const billContent = generateBillContent();
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    const smsUrl = `sms:${cleanPhone}?body=${encodeURIComponent(billContent)}`;
+    
+    const link = document.createElement('a');
+    link.href = smsUrl;
+    link.click();
+    
+    setShowWhatsAppPreview(false);
+  };
+
   return (
     <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4 mb-4">
       <div className="flex items-center mb-3">
@@ -178,7 +195,7 @@ Thank you for your business! 🙏
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm flex items-center"
           >
             <MessageCircle className="mr-2 h-4 w-4" />
-            Preview WhatsApp Bill
+            Share Bill
           </button>
         </div>
       )}
@@ -186,9 +203,9 @@ Thank you for your business! 🙏
       {/* WhatsApp Preview Modal */}
       {showWhatsAppPreview && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-96 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-green-600">WhatsApp Bill Preview</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Share Bill</h3>
               <button
                 onClick={() => setShowWhatsAppPreview(false)}
                 className="text-gray-500 hover:text-gray-700"
@@ -197,26 +214,37 @@ Thank you for your business! 🙏
               </button>
             </div>
             
-            <div className="bg-gray-50 p-4 rounded-lg mb-4">
-              <pre className="text-sm whitespace-pre-wrap font-mono text-gray-800">
-                {generateBillContent()}
-              </pre>
+            <div className="text-center mb-4">
+              <p className="text-sm text-gray-600">
+                Send bill to {selectedCustomer || 'Walk-in Customer'} ({formatPhoneDisplay(phoneNumber)})
+              </p>
             </div>
-            
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowWhatsAppPreview(false)}
-                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-              >
-                Cancel
-              </button>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
               <button
                 onClick={handleSendWhatsApp}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
-                <MessageCircle className="inline mr-2 h-4 w-4" />
-                Send WhatsApp
+                <MessageCircle className="h-5 w-5" />
+                <span>WhatsApp</span>
               </button>
+
+              <button
+                onClick={handleSmsShare}
+                className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                <Smartphone className="h-5 w-5" />
+                <span>SMS</span>
+              </button>
+            </div>
+            
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-xs text-gray-600 mb-2">Bill Preview:</p>
+              <div className="bg-white border border-gray-200 rounded p-3 max-h-32 overflow-y-auto">
+                <pre className="text-xs whitespace-pre-wrap font-mono text-gray-700">
+                  {generateBillContent()}
+                </pre>
+              </div>
             </div>
           </div>
         </div>

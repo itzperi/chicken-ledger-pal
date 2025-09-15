@@ -1007,7 +1007,7 @@ Use "Confirm Bill" to save this bill.
     }
   };
 
-  // Enhanced Send to WhatsApp with error handling and user feedback
+  // Streamlined Send to WhatsApp without unnecessary alerts
   const sendToWhatsApp = async (bill: Bill) => {
     try {
       const billContent = await generateBillContent(bill, previousBalance);
@@ -1024,16 +1024,7 @@ Use "Confirm Bill" to save this bill.
       const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodedMessage}`;
       
       // Open WhatsApp in new window
-      const whatsappWindow = window.open(whatsappUrl, '_blank');
-      
-      if (whatsappWindow) {
-        // Show success message after a delay
-        setTimeout(() => {
-          alert('WhatsApp opened successfully! You can now send the bill to the customer.');
-        }, 1000);
-      } else {
-        alert('Unable to open WhatsApp. Please check your popup blocker settings.');
-      }
+      window.open(whatsappUrl, '_blank');
       
     } catch (error) {
       console.error('Error sending to WhatsApp:', error);
@@ -1255,7 +1246,7 @@ Thank you for your business!
     URL.revokeObjectURL(url);
   };
 
-  // Send history to WhatsApp
+  // Streamlined Send history to WhatsApp
   const sendHistoryToWhatsApp = () => {
     if (customerHistory.length === 0) return;
     
