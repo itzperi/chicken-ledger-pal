@@ -188,33 +188,6 @@ export type Database = {
         }
         Relationships: []
       }
-      profiles: {
-        Row: {
-          business_id: string
-          created_at: string | null
-          id: string
-          user_id: string
-          user_type: string
-          username: string | null
-        }
-        Insert: {
-          business_id: string
-          created_at?: string | null
-          id?: string
-          user_id: string
-          user_type: string
-          username?: string | null
-        }
-        Update: {
-          business_id?: string
-          created_at?: string | null
-          id?: string
-          user_id?: string
-          user_type?: string
-          username?: string | null
-        }
-        Relationships: []
-      }
       purchases: {
         Row: {
           amount: number
@@ -244,14 +217,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_user_business_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      user_belongs_to_business: {
-        Args: { target_business_id: string }
-        Returns: boolean
-      }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
