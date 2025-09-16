@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Plus, Calculator, Check, X, Users, History, Printer, FileText, MessageCircle, Calendar, LogOut, Package, BarChart3, Truck, RefreshCw } from 'lucide-react';
-import Login from '../components/Login';
+import AuthLogin from '../components/AuthLogin';
 import CustomerManager from '../components/CustomerManager';
 import Products from '../components/Products';
 import SalesDashboard from '../components/SalesDashboard';
@@ -9,6 +9,7 @@ import LoadManager from '../components/LoadManager';
 import ShopRegistration from '../components/ShopRegistration';
 import WalkInBilling from '../components/WalkInBilling';
 import { useSupabaseData } from '../hooks/useSupabaseData';
+import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
 interface BillItem {
@@ -42,10 +43,8 @@ type UserType = 'owner' | 'staff';
 type BusinessId = 'santhosh1' | 'santhosh2' | 'vasan' | 'demo1_business' | 'demo2_business' | 'demo3_business' | 'demo4_business' | 'demo5_business' | 'demo6_business' | 'demo7_business' | 'demo8_business' | 'demo9_business' | 'demo10_business';
 
 const Index = () => {
-  // Authentication state
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userType, setUserType] = useState<UserType>('staff');
-  const [businessId, setBusinessId] = useState<BusinessId>('santhosh1');
+  // Authentication from context
+  const { user, businessId, userType, loading, signOut } = useAuth();
 
   // Shop registration state
   const [showShopRegistration, setShowShopRegistration] = useState(false);
@@ -64,7 +63,7 @@ const Index = () => {
     products,
     customers,
     bills,
-    loading,
+    loading: dataLoading,
     addProduct,
     updateProduct,
     deleteProduct,
@@ -79,7 +78,7 @@ const Index = () => {
     refreshCustomersData,
     getRealTimeBalance,
     getRealTimeBalanceByPhone
-  } = useSupabaseData(isLoggedIn ? businessId : '');
+  } = useSupabaseData(businessId || '');
 
   // State management
   const [currentView, setCurrentView] = useState('billing');
@@ -227,60 +226,61 @@ Thank you for your business! 🙏
     setTotalAmount(total);
   }, [billItems]);
 
-  // Handle login
-  const handleLogin = async (type: UserType, id: BusinessId) => {
-    setUserType(type);
-    setBusinessId(id);
-    setIsLoggedIn(true);
-
-    // Special handling for Vasan - always check registration status
-    if (id === 'vasan') {
-      const registrationCompleted = localStorage.getItem(`shop_registration_completed_${id}`);
-      if (!registrationCompleted) {
-        setShowShopRegistration(true);
-        return; // Don't proceed further until registration is complete
-      }
-    }
-
-    // Check if shop details are saved for new businesses (except mathan)
-    if (id !== 'santhosh1') { // mathan uses santhosh1 business id
-      try {
-        const { data: shopData } = await supabase
-          .from('customers')
-          .select('gst_number, name, phone')
-          .eq('business_id', id)
-          .eq('name', '_SHOP_DETAILS_')
-          .limit(1)
-          .single();
-        
-        if (shopData?.gst_number) {
-          setShopDetails({
-            shopName: shopData.name === '_SHOP_DETAILS_' ? shopData.phone : shopData.name,
-            address: shopData.phone === '_SHOP_DETAILS_' ? 'Not provided' : shopData.phone,
-            gstNumber: shopData.gst_number
-          });
-          setShopDetailsLoaded(true);
-        } else {
+  // Load shop details on authentication
+  useEffect(() => {
+    if (businessId) {
+      // Special handling for Vasan - always check registration status
+      if (businessId === 'vasan') {
+        const registrationCompleted = localStorage.getItem(`shop_registration_completed_${businessId}`);
+        if (!registrationCompleted) {
           setShowShopRegistration(true);
+          return;
         }
-      } catch (error) {
-        console.log('No existing shop details found, showing registration');
-        setShowShopRegistration(true);
       }
-    } else {
-      // For mathan's account, set default shop details
-      setShopDetails({
-        shopName: 'Santhosh Chicken Center',
-        address: '21 West Cemetery Road, Old Washermanpet, Chennai 21',
-        gstNumber: 'DEFAULT_GST_NUMBER'
-      });
-      setShopDetailsLoaded(true);
+
+      // Check if shop details are saved for new businesses (except santhosh1)
+      if (businessId !== 'santhosh1') {
+        const loadShopData = async () => {
+          try {
+            const { data: shopData, error } = await supabase
+              .from('customers')
+              .select('gst_number, name, phone')
+              .eq('business_id', businessId)
+              .eq('name', '_SHOP_DETAILS_')
+              .limit(1)
+              .single();
+            
+            if (!error && shopData?.gst_number) {
+              setShopDetails({
+                shopName: shopData.name === '_SHOP_DETAILS_' ? shopData.phone : shopData.name,
+                address: shopData.phone === '_SHOP_DETAILS_' ? 'Not provided' : shopData.phone,
+                gstNumber: shopData.gst_number
+              });
+              setShopDetailsLoaded(true);
+            } else {
+              setShowShopRegistration(true);
+            }
+          } catch (error) {
+            console.log('Error loading shop details:', error);
+            setShowShopRegistration(true);
+          }
+        };
+        loadShopData();
+      } else {
+        // For santhosh1 business, set default shop details
+        setShopDetails({
+          shopName: 'Santhosh Chicken Center',
+          address: '21 West Cemetery Road, Old Washermanpet, Chennai 21',
+          gstNumber: 'DEFAULT_GST_NUMBER'
+        });
+        setShopDetailsLoaded(true);
+      }
     }
-  };
+  }, [businessId]);
 
   // Handle logout
-  const handleLogout = () => {
-    setIsLoggedIn(false);
+  const handleLogout = async () => {
+    await signOut();
     setCurrentView('billing');
     setShowShopRegistration(false);
     setShopDetails(null);
@@ -1471,8 +1471,21 @@ Generated by Billing System`;
     URL.revokeObjectURL(url);
   };
 
-  if (!isLoggedIn) {
-    return <Login onLogin={handleLogin} />;
+  // Show loading screen while authenticating
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login if not authenticated
+  if (!user || !businessId) {
+    return <AuthLogin />;
   }
 
   // For Vasan user, if shop registration is not completed, only show registration modal
